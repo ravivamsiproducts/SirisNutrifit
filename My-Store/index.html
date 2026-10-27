@@ -75,6 +75,38 @@
       transform: translateY(0);
     }
 
+
+    /* Customer onboarding and BMI gate */
+    #onboarding { min-height: 100vh; padding: 34px 0; display: grid; place-items: center; background: radial-gradient(circle at 10% 10%, #e8eedf 0, transparent 32%), var(--cream); }
+    .onboarding-card { width: min(760px, 94%); margin: auto; padding: clamp(22px, 4vw, 42px); border: 1px solid var(--border); border-radius: 28px; background: #fff; box-shadow: 0 22px 70px #203f3012; }
+    .onboarding-brand { display:flex; align-items:center; justify-content:center; gap:10px; color:var(--green); font-size:22px; font-weight:800; margin-bottom:8px; }
+    .onboarding-brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:15px; background:var(--green); color:white; }
+    .onboarding-intro { text-align:center; margin-bottom:24px; }
+    .onboarding-intro h1 { font-size:clamp(27px,4vw,38px); line-height:1.2; margin:14px 0 8px; letter-spacing:-1px; }
+    .onboarding-intro p { color:var(--muted); font-size:14px; }
+    .auth-tabs { display:flex; gap:8px; padding:5px; background:#f0f3eb; border-radius:14px; margin:22px 0; }
+    .auth-tab { flex:1; border:0; border-radius:10px; padding:12px; background:transparent; color:var(--muted); font-weight:800; }
+    .auth-tab.active { background:var(--green); color:#fff; box-shadow:0 4px 12px #203f3020; }
+    .profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+    .field { display:flex; flex-direction:column; gap:7px; min-width:0; }
+    .field.full { grid-column:1/-1; }
+    .field label { font-size:12px; font-weight:800; color:#35473b; }
+    .field input,.field select { width:100%; min-height:47px; padding:11px 13px; border:1px solid #dce4d9; border-radius:12px; background:#fff; color:var(--text); font:inherit; font-size:14px; }
+    .field input:focus,.field select:focus { outline:3px solid #dce9b8; border-color:var(--green); }
+    .onboarding-submit { width:100%; margin-top:22px; min-height:50px; border:0; border-radius:999px; background:var(--green); color:#fff; font-weight:800; padding:14px 20px; }
+    .onboarding-submit:hover { background:var(--green-dark); }
+    .form-note { margin-top:14px; color:var(--muted); font-size:12px; text-align:center; }
+    .bmi-result { display:none; margin-top:22px; padding:20px; border-radius:18px; background:#edf3e4; border:1px solid #dce8d0; }
+    .bmi-result.visible { display:block; }
+    .bmi-number { font-size:36px; font-weight:900; color:var(--green); line-height:1.2; margin:5px 0; }
+    .bmi-result p { font-size:13px; color:var(--muted); }
+    .bmi-result .onboarding-submit { margin-top:15px; }
+    .auth-message { display:none; padding:12px 14px; margin-top:15px; border-radius:12px; background:#fff5dc; color:#644d16; font-size:13px; }
+    .auth-message.visible { display:block; }
+    #siteContent { display:none; }
+    #siteContent.unlocked { display:block; }
+    @media(max-width:560px) { .profile-grid { grid-template-columns:1fr; } .field.full { grid-column:auto; } .onboarding-card { padding:22px 17px; } }
+
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after {
@@ -629,6 +661,49 @@
 </head>
 
 <body>
+  <section id="onboarding" aria-labelledby="onboardingTitle">
+    <div class="onboarding-card">
+      <div class="onboarding-brand"><span class="onboarding-brand-mark">✳</span><span>SirisNutriFit</span></div>
+      <div class="onboarding-intro">
+        <span class="eyebrow">Your wellness journey</span>
+        <h1 id="onboardingTitle">Let’s understand your health goals</h1>
+        <p>Create your customer profile first, calculate your BMI, then continue to SirisNutriFit.</p>
+      </div>
+      <div class="auth-tabs" role="tablist" aria-label="Account options">
+        <button class="auth-tab active" id="createTab" type="button" role="tab" aria-selected="true">Create account</button>
+        <button class="auth-tab" id="signinTab" type="button" role="tab" aria-selected="false">Sign in</button>
+      </div>
+      <form id="createAccountForm">
+        <div class="profile-grid">
+          <div class="field full"><label for="fullName">Full name</label><input id="fullName" name="fullName" autocomplete="name" required maxlength="100" placeholder="Enter your full name"></div>
+          <div class="field"><label for="contactNumber">Contact number</label><input id="contactNumber" name="contactNumber" type="tel" inputmode="tel" autocomplete="tel" pattern="[+0-9 ()-]{10,18}" required placeholder="10-digit mobile number"></div>
+          <div class="field"><label for="accountPassword">Password</label><input id="accountPassword" name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></div>
+          <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="1" max="120" required placeholder="Age in years"></div>
+          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select gender</option><option value="Female">Female</option><option value="Male">Male</option><option value="Non-binary">Non-binary</option><option value="Prefer not to say">Prefer not to say</option></select></div>
+          <div class="field"><label for="heightCm">Height (cm)</label><input id="heightCm" name="heightCm" type="number" min="50" max="260" step="0.1" required placeholder="e.g. 165"></div>
+          <div class="field"><label for="weightKg">Weight (kg)</label><input id="weightKg" name="weightKg" type="number" min="10" max="500" step="0.1" required placeholder="e.g. 68"></div>
+          <div class="field full"><label for="goal">Your goal</label><select id="goal" name="goal" required><option value="">Choose your goal</option><option value="Weight loss">Weight loss</option><option value="Weight gain">Weight gain</option></select></div>
+        </div>
+        <button class="onboarding-submit" type="submit">Create account and see my BMI →</button>
+        <p class="form-note">Your password is not saved by this demo page. Secure account creation will be enabled after authentication is connected.</p>
+      </form>
+      <form id="signInForm" hidden>
+        <div class="profile-grid">
+          <div class="field full"><label for="signinContact">Contact number</label><input id="signinContact" name="contact" type="tel" autocomplete="username" required placeholder="Your registered mobile number"></div>
+          <div class="field full"><label for="signinPassword">Password</label><input id="signinPassword" name="password" type="password" autocomplete="current-password" required placeholder="Your password"></div>
+        </div>
+        <button class="onboarding-submit" type="submit">Sign in</button>
+        <div id="signinMessage" class="auth-message" role="status">Secure sign-in is not connected yet. Please use the create-account form to preview the BMI flow; real accounts require secure authentication setup.</div>
+      </form>
+      <div id="bmiResult" class="bmi-result" aria-live="polite">
+        <strong>Your BMI result</strong><div id="bmiNumber" class="bmi-number"></div><strong id="bmiCategory"></strong>
+        <p id="bmiExplanation"></p>
+        <button type="button" class="onboarding-submit" id="continueToSite">Continue to website →</button>
+      </div>
+    </div>
+  </section>
+  <div id="siteContent">
+
   <a class="skip-link" href="#main-content">Skip to main content</a>\n  <div class="topbar">
     SMALL, SUSTAINABLE STEPS. A HEALTHIER YOU.
   </div>
@@ -966,6 +1041,58 @@
   </footer>
 
   <script>
+
+    // Customer onboarding gate and BMI preview. No password or health profile is persisted.
+    const createTab = document.getElementById("createTab");
+    const signinTab = document.getElementById("signinTab");
+    const createForm = document.getElementById("createAccountForm");
+    const signInForm = document.getElementById("signInForm");
+    const signinMessage = document.getElementById("signinMessage");
+    const bmiResult = document.getElementById("bmiResult");
+    function setAuthMode(mode) {
+      const creating = mode === "create";
+      createTab.classList.toggle("active", creating);
+      signinTab.classList.toggle("active", !creating);
+      createTab.setAttribute("aria-selected", String(creating));
+      signinTab.setAttribute("aria-selected", String(!creating));
+      createForm.hidden = !creating;
+      signInForm.hidden = creating;
+      bmiResult.classList.remove("visible");
+      signinMessage.classList.remove("visible");
+    }
+    createTab.addEventListener("click", () => setAuthMode("create"));
+    signinTab.addEventListener("click", () => setAuthMode("signin"));
+    signInForm.addEventListener("submit", event => {
+      event.preventDefault();
+      signinMessage.classList.add("visible");
+    });
+    createForm.addEventListener("submit", event => {
+      event.preventDefault();
+      if (!createForm.reportValidity()) return;
+      const heightCm = Number(document.getElementById("heightCm").value);
+      const weightKg = Number(document.getElementById("weightKg").value);
+      const age = Number(document.getElementById("age").value);
+      if (!heightCm || !weightKg || heightCm <= 0 || weightKg <= 0) return;
+      const bmi = weightKg / Math.pow(heightCm / 100, 2);
+      document.getElementById("bmiNumber").textContent = bmi.toFixed(1);
+      let category = "";
+      if (bmi < 18.5) category = "Below the standard adult BMI range";
+      else if (bmi < 25) category = "Within the standard adult BMI range";
+      else if (bmi < 30) category = "Above the standard adult BMI range";
+      else category = "In the high adult BMI range";
+      document.getElementById("bmiCategory").textContent = category;
+      document.getElementById("bmiExplanation").textContent = age < 18
+        ? "For people under 18, BMI must be interpreted using age- and sex-specific growth charts. This number is not an adult BMI assessment."
+        : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it alongside your health history and other measurements.";
+      bmiResult.classList.add("visible");
+      bmiResult.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest"});
+    });
+    document.getElementById("continueToSite").addEventListener("click", () => {
+      document.getElementById("onboarding").style.display = "none";
+      document.getElementById("siteContent").classList.add("unlocked");
+      window.scrollTo({top:0,behavior:"auto"});
+    });
+
     const menuToggle = document.getElementById("menuToggle");
     const navLinks = document.getElementById("navLinks");
 
@@ -1002,5 +1129,6 @@
       });
     });
   </script>
+  </div><!-- /siteContent -->
 </body>
 </html>
