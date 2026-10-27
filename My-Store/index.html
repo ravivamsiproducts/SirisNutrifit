@@ -98,7 +98,15 @@
     .form-note { margin-top:14px; color:var(--muted); font-size:12px; text-align:center; }
     .bmi-result { display:none; margin-top:22px; padding:20px; border-radius:18px; background:#edf3e4; border:1px solid #dce8d0; }
     .bmi-result.visible { display:block; }
-    .bmi-number { font-size:36px; font-weight:900; color:var(--green); line-height:1.2; margin:5px 0; }
+    .bmi-number { display:inline-block; font-size:36px; font-weight:900; color:#65a30d; line-height:1.2; margin:5px 0; padding:3px 12px; border-radius:12px; background:#f0fdf4; }
+    .bmi-number.bmi-under { color:#65a30d; background:#f0fdf4; }
+    .bmi-number.bmi-normal { color:#15803d; background:#dcfce7; }
+    .bmi-number.bmi-overweight { color:#ea580c; background:#ffedd5; }
+    .bmi-number.bmi-obesity { color:#dc2626; background:#fee2e2; }
+    .bmi-category-under { color:#65a30d; }
+    .bmi-category-normal { color:#15803d; }
+    .bmi-category-overweight { color:#ea580c; }
+    .bmi-category-obesity { color:#dc2626; }
     .bmi-result p { font-size:13px; color:var(--muted); }
     .bmi-result .onboarding-submit { margin-top:15px; }
     .auth-message { display:none; padding:12px 14px; margin-top:15px; border-radius:12px; background:#fff5dc; color:#644d16; font-size:13px; }
@@ -1105,11 +1113,19 @@
       };
     }
     function showBmi(profile) {
-      document.getElementById("bmiNumber").textContent = profile.bmi.toFixed(1);
-      const category = profile.bmi < 18.5 ? "Below the standard adult BMI range"
-        : profile.bmi < 25 ? "Within the standard adult BMI range"
-        : profile.bmi < 30 ? "Above the standard adult BMI range" : "In the high adult BMI range";
-      document.getElementById("bmiCategory").textContent = category;
+      const bmiNumber = document.getElementById("bmiNumber");
+      const bmiCategory = document.getElementById("bmiCategory");
+      bmiNumber.textContent = profile.bmi.toFixed(1);
+      const category = profile.bmi < 18.5 ? "Underweight (Below normal)"
+        : profile.bmi < 25 ? "Normal weight"
+        : profile.bmi < 30 ? "Overweight (Above normal)"
+        : "Obesity range";
+      const bmiClass = profile.bmi < 18.5 ? "bmi-under"
+        : profile.bmi < 25 ? "bmi-normal"
+        : profile.bmi < 30 ? "bmi-overweight" : "bmi-obesity";
+      bmiNumber.className = "bmi-number " + bmiClass;
+      bmiCategory.className = "bmi-category-" + bmiClass.replace("bmi-", "");
+      bmiCategory.textContent = category;
       document.getElementById("bmiExplanation").textContent = profile.age < 18
         ? "For people under 18, BMI must be interpreted using age- and sex-specific growth charts. This is not an adult BMI assessment."
         : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it with your health history.";
