@@ -1,4 +1,4 @@
-# SirisNutriCare
+# SirisNutriFit
 
 Responsive nutrition and diet-consultation website prototype.
 
@@ -16,7 +16,7 @@ The current site is a **front-end prototype**. Customer sign-in, registration, c
 
 ## Planned build sequence
 
-1. Set up a dedicated SirisNutriCare Supabase project/schema (do not reuse unrelated store databases).
+1. Set up a dedicated SirisNutriFit Supabase project/schema (do not reuse unrelated store databases).
 2. Implement secure customer authentication and profile ownership.
 3. Add consultant-assigned diet plans and customer progress tracking with Row Level Security.
 4. Add appointment requests and consultant/admin management.
