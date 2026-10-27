@@ -108,6 +108,10 @@
     .bmi-category-overweight { color:#ea580c; }
     .bmi-category-obesity { color:#dc2626; }
     .bmi-result p { font-size:13px; color:var(--muted); }
+    .weight-guidance { margin-top:14px; padding:14px 16px; border-radius:14px; background:#fff; border:1px solid #dce8d0; color:var(--text); font-size:14px; }
+    .weight-guidance strong { display:block; margin-bottom:5px; }
+    .weight-guidance .weight-amount { font-size:20px; font-weight:900; color:var(--green); }
+    .weight-guidance small { display:block; margin-top:7px; color:var(--muted); font-size:11px; line-height:1.5; }
     .bmi-result .onboarding-submit { margin-top:15px; }
     .auth-message { display:none; padding:12px 14px; margin-top:15px; border-radius:12px; background:#fff5dc; color:#644d16; font-size:13px; }
     .auth-message.visible { display:block; }
@@ -698,6 +702,7 @@
       <div id="bmiResult" class="bmi-result" aria-live="polite">
         <strong>Your BMI result</strong><div id="bmiNumber" class="bmi-number"></div><strong id="bmiCategory"></strong>
         <p id="bmiExplanation"></p>
+        <div id="weightGuidance" class="weight-guidance" aria-live="polite"></div>
         <button type="button" class="onboarding-submit" id="continueToSite">Continue to website →</button>
       </div>
     </div>
@@ -1129,6 +1134,22 @@
       document.getElementById("bmiExplanation").textContent = profile.age < 18
         ? "For people under 18, BMI must be interpreted using age- and sex-specific growth charts. This is not an adult BMI assessment."
         : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it with your health history.";
+      const guidance = document.getElementById("weightGuidance");
+      const heightM = profile.height_cm / 100;
+      const healthyMin = 18.5 * heightM * heightM;
+      const healthyMax = 24.9 * heightM * heightM;
+      const roundKg = value => (Math.round(value * 10) / 10).toFixed(1);
+      if (profile.age < 18) {
+        guidance.innerHTML = "<strong>Weight guidance</strong>Adult BMI weight targets are not suitable for people under 18. Please ask a qualified healthcare professional to assess growth-chart percentiles.";
+      } else if (profile.bmi < 18.5) {
+        const gain = Math.max(0, healthyMin - profile.weight_kg);
+        guidance.innerHTML = "<strong>Estimated weight guidance</strong><span>To reach the lower end of the adult healthy BMI range, the calculated difference is approximately <span class='weight-amount'>gain " + roundKg(gain) + " kg</span>.</span><small>Calculated using BMI 18.5 at your height. This is an estimate, not a prescribed goal; discuss safe weight gain with a qualified professional.</small>";
+      } else if (profile.bmi >= 25) {
+        const lose = Math.max(0, profile.weight_kg - healthyMax);
+        guidance.innerHTML = "<strong>Estimated weight guidance</strong><span>To reach the upper end of the adult healthy BMI range, the calculated difference is approximately <span class='weight-amount'>lose " + roundKg(lose) + " kg</span>.</span><small>Calculated using BMI 24.9 at your height. This is an estimate, not a prescribed goal; a qualified professional can help set a safe, realistic target.</small>";
+      } else {
+        guidance.innerHTML = "<strong>Estimated weight guidance</strong><span>Your weight is within the standard adult BMI range for your height. <span class='weight-amount'>No BMI-based weight change indicated.</span></span><small>For your height, the approximate adult healthy BMI weight range is " + roundKg(healthyMin) + "–" + roundKg(healthyMax) + " kg. BMI is a screening measure, not a diagnosis.</small>";
+      }
       document.getElementById("bmiResult").classList.add("visible");
     }
     form.addEventListener("submit", async (event) => {
