@@ -685,7 +685,7 @@
           <div class="field full"><label for="goal">Your goal</label><select id="goal" name="goal" required><option value="">Choose your goal</option><option value="Weight loss">Weight loss</option><option value="Weight gain">Weight gain</option></select></div>
         </div>
         <button class="onboarding-submit" type="submit">Create account and see my BMI →</button>
-        <p class="form-note">Your password is not saved by this demo page. Secure account creation will be enabled after authentication is connected.</p>
+        <p class="form-note">Your password is handled securely by Supabase Authentication. Your profile is saved to your account after registration.</p>
       </form>
       <form id="signInForm" hidden>
         <div class="profile-grid">
@@ -693,7 +693,7 @@
           <div class="field full"><label for="signinPassword">Password</label><input id="signinPassword" name="password" type="password" autocomplete="current-password" required placeholder="Your password"></div>
         </div>
         <button class="onboarding-submit" type="submit">Sign in</button>
-        <div id="signinMessage" class="auth-message" role="status">Secure sign-in is not connected yet. Please use the create-account form to preview the BMI flow; real accounts require secure authentication setup.</div>
+        <div id="signinMessage" class="auth-message" role="status"></div>
       </form>
       <div id="bmiResult" class="bmi-result" aria-live="polite">
         <strong>Your BMI result</strong><div id="bmiNumber" class="bmi-number"></div><strong id="bmiCategory"></strong>
@@ -1130,5 +1130,143 @@
     });
   </script>
   </div><!-- /siteContent -->
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    const supabase = createClient("https://ulmwkqvjhmcevduonjpm.supabase.co", "sb_publishable_P98M8aUwv4b_F0NLVscOvA_4quM8WKL");
+    const statusBox = document.getElementById("signinMessage");
+    const formStatus = document.createElement("div");
+    formStatus.className = "auth-message";
+    formStatus.id = "accountStatus";
+    formStatus.setAttribute("role", "status");
+    document.getElementById("createAccountForm").appendChild(formStatus);
+
+    function showStatus(message, isError = false) {
+      formStatus.textContent = message;
+      formStatus.style.display = "block";
+      formStatus.classList.add("visible");
+      formStatus.style.background = isError ? "#fde8e7" : "#eaf4e5";
+      formStatus.style.color = isError ? "#8c2923" : "#244c32";
+    }
+    function showSignInStatus(message, isError = false) {
+      statusBox.textContent = message;
+      statusBox.classList.add("visible");
+      statusBox.style.background = isError ? "#fde8e7" : "#eaf4e5";
+      statusBox.style.color = isError ? "#8c2923" : "#244c32";
+    }
+    function normalizePhone(raw) {
+      const value = raw.trim().replace(/[\s()-]/g, "");
+      if (value.startsWith("+")) return value;
+      if (/^\d{10}$/.test(value)) return "+91" + value;
+      if (/^91\d{10}$/.test(value)) return "+" + value;
+      return value;
+    }
+    function readProfileForm() {
+      const height = Number(document.getElementById("heightCm").value);
+      const weight = Number(document.getElementById("weightKg").value);
+      return {
+        full_name: document.getElementById("fullName").value.trim(),
+        phone_number: normalizePhone(document.getElementById("contactNumber").value),
+        age: Number(document.getElementById("age").value),
+        gender: document.getElementById("gender").value.toLowerCase().replaceAll(" ", "_").replace("non-binary", "other"),
+        height_cm: height,
+        weight_kg: weight,
+        goal: document.getElementById("goal").value.toLowerCase().replaceAll(" ", "_"),
+        bmi: Number((weight / Math.pow(height / 100, 2)).toFixed(2))
+      };
+    }
+    async function saveProfile(user, profile) {
+      const { error } = await supabase.from("customer_profiles").upsert(
+        { user_id: user.id, ...profile },
+        { onConflict: "user_id" }
+      );
+      if (error) throw error;
+    }
+    function showBmi(profile) {
+      document.getElementById("bmiNumber").textContent = profile.bmi.toFixed(1);
+      let category = profile.bmi < 18.5 ? "Below the standard adult BMI range"
+        : profile.bmi < 25 ? "Within the standard adult BMI range"
+        : profile.bmi < 30 ? "Above the standard adult BMI range" : "In the high adult BMI range";
+      document.getElementById("bmiCategory").textContent = category;
+      document.getElementById("bmiExplanation").textContent = profile.age < 18
+        ? "For people under 18, BMI must be interpreted using age- and sex-specific growth charts. This is not an adult BMI assessment."
+        : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it with your health history.";
+      document.getElementById("bmiResult").classList.add("visible");
+    }
+
+    document.getElementById("createAccountForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!event.currentTarget.reportValidity()) return;
+      const form = event.currentTarget;
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      formStatus.classList.remove("visible");
+      try {
+        const profile = readProfileForm();
+        const password = document.getElementById("accountPassword").value;
+        if (!/^\+?[1-9]\d{9,14}$/.test(profile.phone_number)) {
+          throw new Error("Enter a valid phone number with country code, or a 10-digit Indian mobile number.");
+        }
+        const { data, error } = await supabase.auth.signUp({
+          phone: profile.phone_number,
+          password,
+          options: { data: { customer_profile: profile } }
+        });
+        if (error) throw error;
+        if (data.session && data.user) {
+          await saveProfile(data.user, profile);
+          showBmi(profile);
+          showStatus("Account created and your profile was saved successfully. Your BMI is ready below.");
+        } else {
+          showStatus("Registration started. If phone verification is enabled in Supabase, verify the SMS code, then sign in with your phone number and password to finish saving your profile.");
+        }
+      } catch (error) {
+        showStatus(error.message || "Could not create your account. Please try again.", true);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    document.getElementById("signInForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      if (!form.reportValidity()) return;
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      try {
+        const phone = normalizePhone(document.getElementById("signinContact").value);
+        const password = document.getElementById("signinPassword").value;
+        const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
+        if (error) throw error;
+        const user = data.user;
+        let { data: savedProfile, error: profileError } = await supabase
+          .from("customer_profiles").select("*").eq("user_id", user.id).maybeSingle();
+        if (profileError) throw profileError;
+        if (!savedProfile && user.user_metadata && user.user_metadata.customer_profile) {
+          const metadata = user.user_metadata.customer_profile;
+          await saveProfile(user, metadata);
+          savedProfile = metadata;
+        }
+        if (!savedProfile) throw new Error("Your profile was not found. Please create your account again or contact support.");
+        showBmi(savedProfile);
+        document.getElementById("onboardingTitle").textContent = "Welcome back, " + savedProfile.full_name + "!";
+        showSignInStatus("Signed in successfully. Your profile is loaded and your BMI is ready below.");
+        document.getElementById("onboarding").style.display = "none";
+        document.getElementById("siteContent").classList.add("unlocked");
+        window.scrollTo({ top: 0, behavior: "auto" });
+      } catch (error) {
+        showSignInStatus(error.message || "Could not sign in. Please check your phone number and password.", true);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    document.getElementById("continueToSite").addEventListener("click", async () => {
+      document.getElementById("onboarding").style.display = "none";
+      document.getElementById("siteContent").classList.add("unlocked");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+  </script>
+
 </body>
 </html>
