@@ -667,33 +667,21 @@
       <div class="onboarding-intro">
         <span class="eyebrow">Your wellness journey</span>
         <h1 id="onboardingTitle">Let’s understand your health goals</h1>
-        <p>Create your customer profile first, calculate your BMI, then continue to SirisNutriFit.</p>
-      </div>
-      <div class="auth-tabs" role="tablist" aria-label="Account options">
-        <button class="auth-tab active" id="createTab" type="button" role="tab" aria-selected="true">Create account</button>
-        <button class="auth-tab" id="signinTab" type="button" role="tab" aria-selected="false">Sign in</button>
+        <p>Enter your details to calculate your BMI and continue to SirisNutriFit. No account or password needed.</p>
       </div>
       <form id="createAccountForm">
         <div class="profile-grid">
           <div class="field full"><label for="fullName">Full name</label><input id="fullName" name="fullName" autocomplete="name" required maxlength="100" placeholder="Enter your full name"></div>
-          <div class="field"><label for="contactNumber">Contact number</label><input id="contactNumber" name="contactNumber" type="tel" inputmode="tel" autocomplete="tel" pattern="[+0-9 ()-]{10,18}" required placeholder="10-digit mobile number"></div>
-          <div class="field"><label for="accountPassword">Password</label><input id="accountPassword" name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></div>
+          <div class="field full"><label for="contactNumber">Contact number</label><input id="contactNumber" name="contactNumber" type="tel" inputmode="tel" autocomplete="tel" pattern="[+0-9 ()-]{10,18}" required placeholder="10-digit mobile number"></div>
           <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="1" max="120" required placeholder="Age in years"></div>
           <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select gender</option><option value="Female">Female</option><option value="Male">Male</option><option value="Non-binary">Non-binary</option><option value="Prefer not to say">Prefer not to say</option></select></div>
           <div class="field"><label for="heightCm">Height (cm)</label><input id="heightCm" name="heightCm" type="number" min="50" max="260" step="0.1" required placeholder="e.g. 165"></div>
           <div class="field"><label for="weightKg">Weight (kg)</label><input id="weightKg" name="weightKg" type="number" min="10" max="500" step="0.1" required placeholder="e.g. 68"></div>
           <div class="field full"><label for="goal">Your goal</label><select id="goal" name="goal" required><option value="">Choose your goal</option><option value="Weight loss">Weight loss</option><option value="Weight gain">Weight gain</option></select></div>
         </div>
-        <button class="onboarding-submit" type="submit">Create account and see my BMI →</button>
-        <p class="form-note">Your password is handled securely by Supabase Authentication. Your profile is saved to your account after registration.</p>
-      </form>
-      <form id="signInForm" hidden>
-        <div class="profile-grid">
-          <div class="field full"><label for="signinContact">Contact number</label><input id="signinContact" name="contact" type="tel" autocomplete="username" required placeholder="Your registered mobile number"></div>
-          <div class="field full"><label for="signinPassword">Password</label><input id="signinPassword" name="password" type="password" autocomplete="current-password" required placeholder="Your password"></div>
-        </div>
-        <button class="onboarding-submit" type="submit">Sign in</button>
-        <div id="signinMessage" class="auth-message" role="status"></div>
+        <button class="onboarding-submit" type="submit">Save my details and calculate BMI →</button>
+        <p class="form-note">Your health details are shared with SirisNutriFit for customer support. Please enter accurate information.</p>
+        <div id="accountStatus" class="auth-message" role="status"></div>
       </form>
       <div id="bmiResult" class="bmi-result" aria-live="polite">
         <strong>Your BMI result</strong><div id="bmiNumber" class="bmi-number"></div><strong id="bmiCategory"></strong>
@@ -702,6 +690,7 @@
       </div>
     </div>
   </section>
+  
   <div id="siteContent">
 
   <a class="skip-link" href="#main-content">Skip to main content</a>\n  <div class="topbar">
@@ -1042,36 +1031,6 @@
 
   <script>
 
-    // Customer onboarding tabs and BMI display; Supabase module below handles authentication and profile storage.
-    const createTab = document.getElementById("createTab");
-    const signinTab = document.getElementById("signinTab");
-    const createForm = document.getElementById("createAccountForm");
-    const signInForm = document.getElementById("signInForm");
-    const signinMessage = document.getElementById("signinMessage");
-    const bmiResult = document.getElementById("bmiResult");
-    function setAuthMode(mode) {
-      const creating = mode === "create";
-      createTab.classList.toggle("active", creating);
-      signinTab.classList.toggle("active", !creating);
-      createTab.setAttribute("aria-selected", String(creating));
-      signinTab.setAttribute("aria-selected", String(!creating));
-      createForm.hidden = !creating;
-      signInForm.hidden = creating;
-      bmiResult.classList.remove("visible");
-      signinMessage.classList.remove("visible");
-    }
-    createTab.addEventListener("click", () => setAuthMode("create"));
-    signinTab.addEventListener("click", () => setAuthMode("signin"));
-    signInForm.addEventListener("submit", event => {
-      event.preventDefault();
-      signinMessage.classList.add("visible");
-    });
-    document.getElementById("continueToSite").addEventListener("click", () => {
-      document.getElementById("onboarding").style.display = "none";
-      document.getElementById("siteContent").classList.add("unlocked");
-      window.scrollTo({top:0,behavior:"auto"});
-    });
-
     const menuToggle = document.getElementById("menuToggle");
     const navLinks = document.getElementById("navLinks");
 
@@ -1113,31 +1072,19 @@
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     const supabase = createClient("https://ulmwkqvjhmcevduonjpm.supabase.co", "sb_publishable_P98M8aUwv4b_F0NLVscOvA_4quM8WKL");
-    const statusBox = document.getElementById("signinMessage");
-    const formStatus = document.createElement("div");
-    formStatus.className = "auth-message";
-    formStatus.id = "accountStatus";
-    formStatus.setAttribute("role", "status");
-    document.getElementById("createAccountForm").appendChild(formStatus);
-
+    const form = document.getElementById("createAccountForm");
+    const formStatus = document.getElementById("accountStatus");
     function showStatus(message, isError = false) {
       formStatus.textContent = message;
-      formStatus.style.display = "block";
       formStatus.classList.add("visible");
       formStatus.style.background = isError ? "#fde8e7" : "#eaf4e5";
       formStatus.style.color = isError ? "#8c2923" : "#244c32";
     }
-    function showSignInStatus(message, isError = false) {
-      statusBox.textContent = message;
-      statusBox.classList.add("visible");
-      statusBox.style.background = isError ? "#fde8e7" : "#eaf4e5";
-      statusBox.style.color = isError ? "#8c2923" : "#244c32";
-    }
     function normalizePhone(raw) {
-      const value = raw.trim().replace(/[\s()-]/g, "");
+      const value = raw.trim().replace(/[\\s()-]/g, "");
       if (value.startsWith("+")) return value;
-      if (/^\d{10}$/.test(value)) return "+91" + value;
-      if (/^91\d{10}$/.test(value)) return "+" + value;
+      if (/^\\d{10}$/.test(value)) return "+91" + value;
+      if (/^91\\d{10}$/.test(value)) return "+" + value;
       return value;
     }
     function readProfileForm() {
@@ -1154,16 +1101,9 @@
         bmi: Number((weight / Math.pow(height / 100, 2)).toFixed(2))
       };
     }
-    async function saveProfile(user, profile) {
-      const { error } = await supabase.from("customer_profiles").upsert(
-        { user_id: user.id, ...profile },
-        { onConflict: "user_id" }
-      );
-      if (error) throw error;
-    }
     function showBmi(profile) {
       document.getElementById("bmiNumber").textContent = profile.bmi.toFixed(1);
-      let category = profile.bmi < 18.5 ? "Below the standard adult BMI range"
+      const category = profile.bmi < 18.5 ? "Below the standard adult BMI range"
         : profile.bmi < 25 ? "Within the standard adult BMI range"
         : profile.bmi < 30 ? "Above the standard adult BMI range" : "In the high adult BMI range";
       document.getElementById("bmiCategory").textContent = category;
@@ -1172,73 +1112,28 @@
         : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it with your health history.";
       document.getElementById("bmiResult").classList.add("visible");
     }
-
-    document.getElementById("createAccountForm").addEventListener("submit", async (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!event.currentTarget.reportValidity()) return;
-      const form = event.currentTarget;
+      if (!form.reportValidity()) return;
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
       formStatus.classList.remove("visible");
       try {
         const profile = readProfileForm();
-        const password = document.getElementById("accountPassword").value;
-        if (!/^\+?[1-9]\d{9,14}$/.test(profile.phone_number)) {
+        if (!/^\\+?[1-9]\\d{9,14}$/.test(profile.phone_number)) {
           throw new Error("Enter a valid phone number with country code, or a 10-digit Indian mobile number.");
         }
-        const { data, error } = await supabase.auth.signUp({
-          phone: profile.phone_number,
-          password,
-          options: { data: { customer_profile: profile } }
-        });
+        const { error } = await supabase.from("customer_profiles").insert({ user_id: null, ...profile });
         if (error) throw error;
-        if (data.session && data.user) {
-          await saveProfile(data.user, profile);
-          showBmi(profile);
-          showStatus("Account created and your profile was saved successfully. Your BMI is ready below.");
-        } else {
-          showStatus("Registration started. If phone verification is enabled in Supabase, verify the SMS code, then sign in with your phone number and password to finish saving your profile.");
-        }
+        showBmi(profile);
+        showStatus("Your details were saved successfully. Your BMI is ready below.");
       } catch (error) {
-        showStatus(error.message || "Could not create your account. Please try again.", true);
+        showStatus(error.message || "Could not save your details. Please try again.", true);
       } finally {
         submit.disabled = false;
       }
     });
-
-    document.getElementById("signInForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      if (!form.reportValidity()) return;
-      const submit = form.querySelector('button[type="submit"]');
-      submit.disabled = true;
-      try {
-        const phone = normalizePhone(document.getElementById("signinContact").value);
-        const password = document.getElementById("signinPassword").value;
-        const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
-        if (error) throw error;
-        const user = data.user;
-        let { data: savedProfile, error: profileError } = await supabase
-          .from("customer_profiles").select("*").eq("user_id", user.id).maybeSingle();
-        if (profileError) throw profileError;
-        if (!savedProfile && user.user_metadata && user.user_metadata.customer_profile) {
-          const metadata = user.user_metadata.customer_profile;
-          await saveProfile(user, metadata);
-          savedProfile = metadata;
-        }
-        if (!savedProfile) throw new Error("Your profile was not found. Please create your account again or contact support.");
-        showBmi(savedProfile);
-        document.getElementById("onboardingTitle").textContent = "Welcome back, " + savedProfile.full_name + "!";
-        showSignInStatus("Signed in successfully. Your profile is loaded and your BMI is ready below.");
-        document.getElementById("bmiResult").scrollIntoView({behavior:"smooth",block:"nearest"});
-      } catch (error) {
-        showSignInStatus(error.message || "Could not sign in. Please check your phone number and password.", true);
-      } finally {
-        submit.disabled = false;
-      }
-    });
-
-    document.getElementById("continueToSite").addEventListener("click", async () => {
+    document.getElementById("continueToSite").addEventListener("click", () => {
       document.getElementById("onboarding").style.display = "none";
       document.getElementById("siteContent").classList.add("unlocked");
       window.scrollTo({ top: 0, behavior: "auto" });
