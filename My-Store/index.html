@@ -691,7 +691,7 @@
           <div class="field full"><label for="contactNumber">Contact number</label><div class="phone-input-row"><select id="countryCode" name="countryCode" aria-label="Country calling code" required><option value="+91" selected>🇮🇳 +91</option><option value="+1">🇺🇸 +1</option><option value="+44">🇬🇧 +44</option><option value="+86">🇨🇳 +86</option><option value="+971">🇦🇪 +971</option><option value="+61">🇦🇺 +61</option><option value="+65">🇸🇬 +65</option></select><input id="contactNumber" name="contactNumber" type="tel" inputmode="numeric" autocomplete="tel-national" pattern="[0-9]{6,14}" required placeholder="Mobile number"></div></div>
           <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="1" max="120" required placeholder="Age in years"></div>
           <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select gender</option><option value="Female">Female</option><option value="Male">Male</option><option value="Non-binary">Non-binary</option><option value="Prefer not to say">Prefer not to say</option></select></div>
-          <div class="field"><label for="heightFeetInches">Height (feet + inches)</label><select id="heightFeetInches" name="heightFeetInches" aria-label="Height in feet and inches" required><option value="">Select height</option><option value="48">4 ft 0 in</option><option value="49">4 ft 1 in</option><option value="50">4 ft 2 in</option><option value="51">4 ft 3 in</option><option value="52">4 ft 4 in</option><option value="53">4 ft 5 in</option><option value="54">4 ft 6 in</option><option value="55">4 ft 7 in</option><option value="56">4 ft 8 in</option><option value="57">4 ft 9 in</option><option value="58">4 ft 10 in</option><option value="59">4 ft 11 in</option><option value="60">5 ft 0 in</option><option value="61">5 ft 1 in</option><option value="62">5 ft 2 in</option><option value="63">5 ft 3 in</option><option value="64">5 ft 4 in</option><option value="65">5 ft 5 in</option><option value="66">5 ft 6 in</option><option value="67">5 ft 7 in</option><option value="68">5 ft 8 in</option><option value="69">5 ft 9 in</option><option value="70">5 ft 10 in</option><option value="71">5 ft 11 in</option><option value="72">6 ft 0 in</option><option value="73">6 ft 1 in</option><option value="74">6 ft 2 in</option><option value="75">6 ft 3 in</option><option value="76">6 ft 4 in</option><option value="77">6 ft 5 in</option><option value="78">6 ft 6 in</option><option value="79">6 ft 7 in</option><option value="80">6 ft 8 in</option><option value="81">6 ft 9 in</option><option value="82">6 ft 10 in</option><option value="83">6 ft 11 in</option><option value="84">7 ft 0 in</option><option value="85">7 ft 1 in</option><option value="86">7 ft 2 in</option><option value="87">7 ft 3 in</option><option value="88">7 ft 4 in</option><option value="89">7 ft 5 in</option><option value="90">7 ft 6 in</option><option value="91">7 ft 7 in</option><option value="92">7 ft 8 in</option><option value="93">7 ft 9 in</option><option value="94">7 ft 10 in</option><option value="95">7 ft 11 in</option><option value="96">8 ft 0 in</option></select></div>
+          <div class="field"><label for="heightFeetInches">Height (feet.inches)</label><input id="heightFeetInches" name="heightFeetInches" type="number" min="4.0" max="8.0" step="0.1" inputmode="decimal" required placeholder="e.g. 5.1" aria-describedby="heightFormatHelp"><small id="heightFormatHelp" style="color:var(--muted);font-size:11px">Enter feet.inches, e.g. 5.1 = 5 ft 1 in, 5.11 = 5 ft 11 in.</small></div>
           <div class="field"><label for="weightKg">Weight (kg)</label><input id="weightKg" name="weightKg" type="number" min="10" max="500" step="0.1" required placeholder="e.g. 68"></div>
           <div class="field full"><label for="goal">Your goal</label><select id="goal" name="goal" required><option value="">Choose your goal</option><option value="Weight loss">Weight loss</option><option value="Weight gain">Weight gain</option></select></div>
         </div>
@@ -1104,7 +1104,14 @@
       return code + digits;
     }
     function readProfileForm() {
-      const totalInches = Number(document.getElementById("heightFeetInches").value);
+      const rawHeight = document.getElementById("heightFeetInches").value.trim();
+      const heightParts = rawHeight.split(".");
+      const feet = Number(heightParts[0]);
+      const inches = heightParts.length > 1 ? Number(heightParts[1]) : 0;
+      if (!Number.isInteger(feet) || !Number.isInteger(inches) || feet < 4 || feet > 8 || inches < 0 || inches > 11) {
+        throw new Error("Enter height as feet.inches, e.g. 5.1 for 5 ft 1 in or 5.11 for 5 ft 11 in.");
+      }
+      const totalInches = feet * 12 + inches;
       const height = Number((totalInches * 2.54).toFixed(1));
       const weight = Number(document.getElementById("weightKg").value);
       return {
