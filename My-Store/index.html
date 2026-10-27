@@ -1066,27 +1066,6 @@
       event.preventDefault();
       signinMessage.classList.add("visible");
     });
-    createForm.addEventListener("submit", event => {
-      event.preventDefault();
-      if (!createForm.reportValidity()) return;
-      const heightCm = Number(document.getElementById("heightCm").value);
-      const weightKg = Number(document.getElementById("weightKg").value);
-      const age = Number(document.getElementById("age").value);
-      if (!heightCm || !weightKg || heightCm <= 0 || weightKg <= 0) return;
-      const bmi = weightKg / Math.pow(heightCm / 100, 2);
-      document.getElementById("bmiNumber").textContent = bmi.toFixed(1);
-      let category = "";
-      if (bmi < 18.5) category = "Below the standard adult BMI range";
-      else if (bmi < 25) category = "Within the standard adult BMI range";
-      else if (bmi < 30) category = "Above the standard adult BMI range";
-      else category = "In the high adult BMI range";
-      document.getElementById("bmiCategory").textContent = category;
-      document.getElementById("bmiExplanation").textContent = age < 18
-        ? "For people under 18, BMI must be interpreted using age- and sex-specific growth charts. This number is not an adult BMI assessment."
-        : "BMI is a screening measure, not a diagnosis. A nutrition professional can interpret it alongside your health history and other measurements.";
-      bmiResult.classList.add("visible");
-      bmiResult.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest"});
-    });
     document.getElementById("continueToSite").addEventListener("click", () => {
       document.getElementById("onboarding").style.display = "none";
       document.getElementById("siteContent").classList.add("unlocked");
@@ -1251,9 +1230,7 @@
         showBmi(savedProfile);
         document.getElementById("onboardingTitle").textContent = "Welcome back, " + savedProfile.full_name + "!";
         showSignInStatus("Signed in successfully. Your profile is loaded and your BMI is ready below.");
-        document.getElementById("onboarding").style.display = "none";
-        document.getElementById("siteContent").classList.add("unlocked");
-        window.scrollTo({ top: 0, behavior: "auto" });
+        document.getElementById("bmiResult").scrollIntoView({behavior:"smooth",block:"nearest"});
       } catch (error) {
         showSignInStatus(error.message || "Could not sign in. Please check your phone number and password.", true);
       } finally {
