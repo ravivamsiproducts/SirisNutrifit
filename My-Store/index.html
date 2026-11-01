@@ -1305,8 +1305,10 @@
       document.getElementById("accountStatus").classList.remove("visible");
       document.getElementById("onboardingTitle").textContent = "Update your details";
       document.querySelector(".onboarding-intro p").textContent = "Update your details to calculate your BMI and continue to SirisNutriFit.";
-      const submit = document.querySelector('#createAccountForm button[type="submit"]');
+      const submit = document.querySelector('#createAccountForm button');
+      submit.type = "submit";
       submit.textContent = "Save my details and calculate BMI →";
+      delete submit.dataset.profile;
       localStorage.removeItem("sirisnutrifit_profile_completed");
       localStorage.removeItem("sirisnutrifit_saved_profile");
       window.scrollTo({ top: 0, behavior: "auto" });
