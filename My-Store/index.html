@@ -128,7 +128,9 @@
     .auth-message { display:none; padding:12px 14px; margin-top:15px; border-radius:12px; background:#fff5dc; color:#644d16; font-size:13px; }
     .auth-message.visible { display:block; }
     #onboarding.details-saved .onboarding-intro,
-    #onboarding.details-saved #createAccountForm { display:none; }
+    #onboarding.details-saved #createAccountForm .profile-grid,
+    #onboarding.details-saved #createAccountForm .form-note,
+    #onboarding.details-saved #createAccountForm #accountStatus { display:none; }
     #onboarding.details-saved .onboarding-card { width:min(760px,94%); }
     #siteContent { display:none; }
     #siteContent.unlocked { display:block; }
@@ -714,7 +716,6 @@
         <p class="form-note">Your health details are shared with SirisNutriFit for customer support. Please enter accurate information.</p>
         <div id="accountStatus" class="auth-message" role="status"></div>
       </form>
-      <button type="button" id="calculateBmiAfterSave" class="onboarding-submit" style="display:none">Calculate BMI</button>
       <div id="bmiResult" class="bmi-result" aria-live="polite">
         <strong>Your BMI result</strong><div id="bmiNumber" class="bmi-number"></div><strong id="bmiCategory"></strong>
         <p id="bmiExplanation"></p>
@@ -1214,25 +1215,26 @@
         localStorage.setItem("sirisnutrifit_profile_completed", "true");
         localStorage.setItem("sirisnutrifit_saved_profile", JSON.stringify(profile));
         document.getElementById("onboarding").classList.add("details-saved");
-        document.getElementById("calculateBmiAfterSave").style.display = "block";
-        document.getElementById("calculateBmiAfterSave").dataset.profile = JSON.stringify(profile);
-        showStatus("Your details were saved successfully. Select Calculate BMI to view your result.");
+        const actionButton = form.querySelector('button[type="submit"]');
+        actionButton.type = "button";
+        actionButton.textContent = "Calculate BMI";
+        actionButton.dataset.profile = JSON.stringify(profile);
+        actionButton.disabled = false;
+        actionButton.addEventListener("click", () => {
+          try {
+            const savedProfile = JSON.parse(actionButton.dataset.profile || localStorage.getItem("sirisnutrifit_saved_profile") || "null");
+            if (!savedProfile) return;
+            showBmi(savedProfile);
+            actionButton.style.display = "none";
+            document.getElementById("continueToSite").textContent = "Go to Home Page →";
+          } catch (err) { console.error("Could not calculate BMI:", err); }
+        }, { once: true });
       } catch (error) {
         showStatus(error.message || "Could not save your details. Please try again.", true);
       } finally {
         submit.disabled = false;
       }
     });
-    document.getElementById("calculateBmiAfterSave").addEventListener("click", () => {
-      try {
-        const profile = JSON.parse(document.getElementById("calculateBmiAfterSave").dataset.profile || localStorage.getItem("sirisnutrifit_saved_profile") || "null");
-        if (!profile) return;
-        showBmi(profile);
-        document.getElementById("calculateBmiAfterSave").style.display = "none";
-        document.getElementById("continueToSite").textContent = "Go to Home Page →";
-      } catch (error) { console.error("Could not calculate BMI:", error); }
-    });
-
     async function loadPublicAboutPresentation() {
       const heading = document.querySelector("#about .about-content h2");
       const paragraphs = document.querySelectorAll("#about .about-content p");
@@ -1300,7 +1302,6 @@
       document.getElementById("onboarding").classList.remove("details-saved");
       document.getElementById("createAccountForm").reset();
       document.getElementById("bmiResult").classList.remove("visible");
-      document.getElementById("calculateBmiAfterSave").style.display = "none";
       document.getElementById("accountStatus").classList.remove("visible");
       document.getElementById("onboardingTitle").textContent = "Update your details";
       document.querySelector(".onboarding-intro p").textContent = "Update your details to calculate your BMI and continue to SirisNutriFit.";
@@ -1316,12 +1317,6 @@
     // Returning visitors who completed onboarding on this browser go straight to home.
     if (localStorage.getItem("sirisnutrifit_profile_completed") === "true") {
       const savedProfile = localStorage.getItem("sirisnutrifit_saved_profile");
-      if (savedProfile) {
-        try {
-          document.getElementById("calculateBmiAfterSave").dataset.profile = savedProfile;
-          document.getElementById("onboarding").classList.add("details-saved");
-        } catch (_) {}
-      }
       openHomePage();
     }
   </script>
