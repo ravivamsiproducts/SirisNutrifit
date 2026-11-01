@@ -127,6 +127,9 @@
     #pdfViewerCard:fullscreen .pdf-hint { color:#e2e8e2; }
     .auth-message { display:none; padding:12px 14px; margin-top:15px; border-radius:12px; background:#fff5dc; color:#644d16; font-size:13px; }
     .auth-message.visible { display:block; }
+    #onboarding.details-saved .onboarding-intro,
+    #onboarding.details-saved #createAccountForm { display:none; }
+    #onboarding.details-saved .onboarding-card { width:min(760px,94%); }
     #siteContent { display:none; }
     #siteContent.unlocked { display:block; }
     @media(max-width:560px) { .profile-grid { grid-template-columns:1fr; } .field.full { grid-column:auto; } .onboarding-card { padding:22px 17px; } }
@@ -740,6 +743,7 @@
         <a href="#consultation">Consultation</a>
         <a href="#contact">Contact</a>
         <a href="#account">Customer Login ↗</a>
+        <button type="button" id="showWelcomePage" class="btn btn-outline" style="padding:8px 13px">Welcome / Update Details</button>
       </nav>
 
       <a class="btn btn-primary nav-cta" href="#consultation">
@@ -1205,9 +1209,12 @@
         }
         const { error } = await supabase.from("customer_profiles").insert({ user_id: null, ...profile });
         if (error) throw error;
-        showBmi(profile);
-        // Remember on this browser that onboarding was completed successfully.
+        // Save the completed state only after Supabase confirms the profile was saved.
         localStorage.setItem("sirisnutrifit_profile_completed", "true");
+        localStorage.setItem("sirisnutrifit_saved_profile", JSON.stringify(profile));
+        showBmi(profile);
+        document.getElementById("onboarding").classList.add("details-saved");
+        document.getElementById("continueToSite").textContent = "Go to Home Page →";
         showStatus("Your details were saved successfully. Your BMI is ready below.");
       } catch (error) {
         showStatus(error.message || "Could not save your details. Please try again.", true);
@@ -1276,11 +1283,30 @@
       loadPublicAboutPresentation();
       window.scrollTo({ top: 0, behavior: "auto" });
     }
+    function showWelcomePageForEdit() {
+      document.getElementById("siteContent").classList.remove("unlocked");
+      document.getElementById("onboarding").style.display = "grid";
+      document.getElementById("onboarding").classList.remove("details-saved");
+      document.getElementById("createAccountForm").reset();
+      document.getElementById("bmiResult").classList.remove("visible");
+      document.getElementById("accountStatus").classList.remove("visible");
+      document.getElementById("onboardingTitle").textContent = "Update your details";
+      document.querySelector(".onboarding-intro p").textContent = "Update your details to calculate your BMI and continue to SirisNutriFit.";
+      const submit = document.querySelector('#createAccountForm button[type="submit"]');
+      submit.textContent = "Save my details and calculate BMI →";
+      localStorage.removeItem("sirisnutrifit_profile_completed");
+      localStorage.removeItem("sirisnutrifit_saved_profile");
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
     document.getElementById("continueToSite").addEventListener("click", openHomePage);
+    document.getElementById("showWelcomePage").addEventListener("click", showWelcomePageForEdit);
 
-    // Returning visitors on the same browser go straight to the home page.
-    // Only set this flag after the profile was successfully saved to Supabase.
+    // Returning visitors who completed onboarding on this browser go straight to home.
     if (localStorage.getItem("sirisnutrifit_profile_completed") === "true") {
+      const savedProfile = localStorage.getItem("sirisnutrifit_saved_profile");
+      if (savedProfile) {
+        try { showBmi(JSON.parse(savedProfile)); } catch (_) {}
+      }
       openHomePage();
     }
   </script>
