@@ -732,6 +732,23 @@
       .copyright { flex-direction: column; }
       .trust-row { gap: 10px 15px; }
     }
+    /* Single-page navigation: show only the selected main section. */
+    body.single-page-view main > section { display: none; }
+    body.single-page-view main > section.active-page { display: block; }
+    body.single-page-view footer { display: none; }
+    body.single-page-view footer.active-page { display: block; }
+    body.single-page-view #backToTop { display: none !important; }
+    .nav-links a.active-nav {
+      color: var(--green-dark);
+      background: #e9efdc;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 800;
+    }
+    @media (max-width: 850px) {
+      .nav-links a.active-nav { display: block; }
+    }
+
     .phone-input-row{display:flex;gap:10px;align-items:stretch;width:100%}
   .phone-input-row select{flex:0 0 112px;width:112px;min-width:0;padding:0 8px}
   .phone-input-row input{flex:1 1 auto;min-width:0;width:0}
@@ -1135,7 +1152,40 @@
 
   <script>
 
-    const menuToggle = document.getElementById("menuToggle");
+    // Treat the main navigation items as separate pages: show one section at a time.
+    const pageIds = ["home", "services", "about", "consultation", "contact", "account"];
+    function showPage(pageId, updateHash = true) {
+      if (!pageIds.includes(pageId)) pageId = "home";
+      document.body.classList.add("single-page-view");
+      document.querySelectorAll("main > section, footer#contact").forEach(section => {
+        section.classList.toggle("active-page", section.id === pageId);
+      });
+      document.querySelectorAll("#navLinks a").forEach(link => {
+        const active = link.getAttribute("href") === "#" + pageId;
+        link.classList.toggle("active-nav", active);
+        if (active) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      });
+      if (updateHash && location.hash !== "#" + pageId) history.replaceState(null, "", "#" + pageId);
+      window.scrollTo({ top: 0, behavior: "auto" });
+      const navLinksElement = document.getElementById("navLinks");
+      const menuButton = document.getElementById("menuToggle");
+      navLinksElement.classList.remove("open");
+      menuButton.setAttribute("aria-expanded", "false");
+      menuButton.textContent = "☰";
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      const targetId = link.getAttribute("href").slice(1);
+      if (pageIds.includes(targetId)) {
+        link.addEventListener("click", event => {
+          event.preventDefault();
+          showPage(targetId);
+        });
+      }
+    });
+
+        const menuToggle = document.getElementById("menuToggle");
     const navLinks = document.getElementById("navLinks");
 
     menuToggle.addEventListener("click", () => {
@@ -1161,6 +1211,9 @@
 
     window.addEventListener("scroll", updateBackToTop, { passive: true });
     updateBackToTop();
+
+    const initialPage = pageIds.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    showPage(initialPage, false);
 
     backToTop.addEventListener("click", () => {
       window.scrollTo({
