@@ -731,7 +731,7 @@
           <div class="field"><label for="weightKg">Weight (kg)</label><input id="weightKg" name="weightKg" type="number" min="10" max="500" step="0.1" required placeholder="e.g. 68"></div>
           <div class="field full"><label for="goal">Your goal</label><select id="goal" name="goal" required><option value="">Choose your goal</option><option value="Weight loss">Weight loss</option><option value="Weight gain">Weight gain</option></select></div>
         </div>
-        <button class="onboarding-submit" type="submit">Save my details and calculate BMI →</button>
+        <button class="onboarding-submit" type="submit">Calculate BMI →</button>
         <p class="form-note">Your health details are shared with SirisNutriFit for customer support. Please enter accurate information.</p>
         <div id="accountStatus" class="auth-message" role="status"></div>
       </form>
@@ -1231,24 +1231,14 @@
         }
         const { error } = await supabase.from("customer_profiles").insert({ user_id: null, ...profile });
         if (error) throw error;
-        // Save the completed state only after Supabase confirms the profile was saved.
+        // Save the profile, then show the BMI result immediately—no extra intermediate screen.
         localStorage.setItem("sirisnutrifit_profile_completed", "true");
         localStorage.setItem("sirisnutrifit_saved_profile", JSON.stringify(profile));
         document.getElementById("onboarding").classList.add("details-saved");
         const actionButton = form.querySelector('button[type="submit"]');
-        actionButton.type = "button";
-        actionButton.textContent = "Calculate BMI";
-        actionButton.dataset.profile = JSON.stringify(profile);
-        actionButton.disabled = false;
-        actionButton.addEventListener("click", () => {
-          try {
-            const savedProfile = JSON.parse(actionButton.dataset.profile || localStorage.getItem("sirisnutrifit_saved_profile") || "null");
-            if (!savedProfile) return;
-            showBmi(savedProfile);
-            actionButton.style.display = "none";
-            document.getElementById("continueToSite").textContent = "Go to Home Page →";
-          } catch (err) { console.error("Could not calculate BMI:", err); }
-        }, { once: true });
+        actionButton.style.display = "none";
+        showBmi(profile);
+        document.getElementById("continueToSite").textContent = "Go to Home Page →";
       } catch (error) {
         showStatus(error.message || "Could not save your details. Please try again.", true);
       } finally {
@@ -1327,7 +1317,7 @@
       document.querySelector(".onboarding-intro p").textContent = "Update your details to calculate your BMI and continue to SirisNutriFit.";
       const submit = document.querySelector('#createAccountForm button');
       submit.type = "submit";
-      submit.textContent = "Save my details and calculate BMI →";
+      submit.textContent = "Calculate BMI →";
       delete submit.dataset.profile;
       localStorage.removeItem("sirisnutrifit_profile_completed");
       localStorage.removeItem("sirisnutrifit_saved_profile");
