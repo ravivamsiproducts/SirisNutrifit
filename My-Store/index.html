@@ -79,6 +79,20 @@
     /* Customer onboarding and BMI gate */
     #onboarding { min-height: 100vh; padding: 34px 0; display: grid; place-items: center; background: radial-gradient(circle at 10% 10%, #e8eedf 0, transparent 32%), var(--cream); }
     .onboarding-card { width: min(760px, 94%); margin: auto; padding: clamp(22px, 4vw, 42px); border: 1px solid var(--border); border-radius: 28px; background: #fff; box-shadow: 0 22px 70px #203f3012; }
+    .back-home-welcome {
+      display: none;
+      margin: 0 0 18px auto;
+      padding: 10px 16px;
+      border: 1px solid var(--green);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--green-dark);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #onboarding.returning-edit .back-home-welcome { display: block; }
+
     .onboarding-brand { display:flex; align-items:center; justify-content:center; gap:10px; color:var(--green); font-size:22px; font-weight:800; margin-bottom:8px; }
     .onboarding-brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:15px; background:var(--green); color:white; }
     .onboarding-intro { text-align:center; margin-bottom:24px; }
@@ -715,6 +729,7 @@
 <body>
   <section id="onboarding" aria-labelledby="onboardingTitle">
     <div class="onboarding-card">
+      <button type="button" id="backHomeFromWelcome" class="back-home-welcome">← Go to Home Page</button>
       <div class="onboarding-brand"><span class="onboarding-brand-mark">✳</span><span>SirisNutriFit</span></div>
       <div class="onboarding-intro">
         <span class="eyebrow">Your wellness journey</span>
@@ -1310,6 +1325,7 @@
       document.getElementById("siteContent").classList.remove("unlocked");
       document.getElementById("onboarding").style.display = "grid";
       document.getElementById("onboarding").classList.remove("details-saved");
+      document.getElementById("onboarding").classList.add("returning-edit");
       document.getElementById("createAccountForm").reset();
       document.getElementById("bmiResult").classList.remove("visible");
       document.getElementById("accountStatus").classList.remove("visible");
@@ -1323,6 +1339,7 @@
       localStorage.removeItem("sirisnutrifit_saved_profile");
       window.scrollTo({ top: 0, behavior: "auto" });
     }
+    document.getElementById("backHomeFromWelcome").addEventListener("click", openHomePage);
     document.getElementById("continueToSite").addEventListener("click", openHomePage);
     document.getElementById("showWelcomePage").addEventListener("click", showWelcomePageForEdit);
 
