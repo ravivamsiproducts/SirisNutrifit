@@ -249,7 +249,15 @@
 
     .btn-outline:hover { border-color: var(--green); }
 
-    .menu-toggle {
+    
+    .welcome-update-btn {
+      padding: 10px 14px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-color: var(--green);
+      color: var(--green-dark);
+    }
+.menu-toggle {
       display: none;
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -745,8 +753,9 @@
         <a href="#consultation">Consultation</a>
         <a href="#contact">Contact</a>
         <a href="#account">Customer Login ↗</a>
-        <button type="button" id="showWelcomePage" class="btn btn-outline" style="padding:8px 13px">Welcome / Update Details</button>
       </nav>
+
+      <button type="button" id="showWelcomePage" class="btn btn-outline welcome-update-btn">Welcome / Update Details</button>
 
       <a class="btn btn-primary nav-cta" href="#consultation">
         Book Consultation →
