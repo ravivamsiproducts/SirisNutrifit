@@ -23,6 +23,7 @@
 <button type="button" class="nav-item active" data-panel="dashboard">Customers</button>
 <button type="button" class="nav-item" data-panel="contactManager">Contact Settings</button>
 <button type="button" class="nav-item" data-panel="consultationManager">Consultation Management</button>
+<button type="button" class="nav-item" data-panel="closedConsultations">Closed Consultations</button>
 <button type="button" class="nav-item" data-panel="slotManager">Consultation Slot Availability</button>
 <button type="button" class="nav-item" data-panel="aboutManager">About Page</button>
 </aside>
@@ -60,6 +61,10 @@
 <div class="toolbar"><div><h2>Consultation Management</h2><p class="muted" id="enquiryCount">Manage customer appointments, follow-ups and package offers.</p></div><button type="button" id="refreshEnquiries">Refresh</button></div>
 <div class="table-wrap"><table style="min-width:1100px"><thead><tr><th>Customer</th><th>Phone</th><th>Type / Location</th><th>Appointment</th><th>Consultation</th><th>WhatsApp</th><th>Manage</th></tr></thead><tbody id="enquiriesBody"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
 <p class="muted" style="margin-top:12px">Select Consultation Details to update progress, notes, suggestions and package offers. WhatsApp opens a pre-filled message for you to review and send.</p>
+</section>
+<section class="card admin-panel hidden" id="closedConsultations">
+<div class="toolbar"><div><h2>Closed Consultations</h2><p class="muted" id="closedEnquiryCount">Completed consultation records are archived here.</p></div><button type="button" id="refreshClosedEnquiries">Refresh</button></div>
+<div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer</th><th>Phone</th><th>Type</th><th>Appointment</th><th>Consultant Suggestions</th><th>Notes / Follow-up</th><th>Package</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="card admin-panel hidden" id="slotManager" style="margin-top:20px">
 <div class="toolbar"><div><h2>Consultation Slot Availability</h2><p class="muted">Choose a date and switch each 30-minute slot Available / Inactive. Changes reflect on the public booking page.</p></div><button type="button" id="refreshSlots">Refresh Slots</button></div>
@@ -102,7 +107,7 @@ async function loadCustomers(){
  const rows=(data||[]).filter(c=>(c.full_name+" "+c.phone_number).toLowerCase().includes(q));
  document.getElementById("count").textContent=rows.length+" customer"+(rows.length===1?"":"s");
  body.innerHTML=rows.length?rows.map(c=>{
-  const key=String(c.phone_number||"").replace(/\D/g,""),items=byPhone.get(key)||[];
+  const key=String(c.phone_number||"").replace(/\D/g,""),items=(byPhone.get(key)||[]).filter(x=>(x.consultation_stage||"Open")!=="Closed");
   const consultationCell=items.length?items.map(x=>'<button type="button" data-open-consultation="'+x.id+'" style="padding:7px 10px;margin:3px;font-size:11px;line-height:1.3">View · '+esc(consultationDateTime(x.appointment_date,x.appointment_time))+'</button>').join(""):'<span class="pill">Profile saved</span>';
   return '<tr><td>'+esc(c.full_name)+'</td><td>'+esc(c.phone_number)+'</td><td>'+esc(c.age)+'</td><td>'+esc(String(c.gender||"").replaceAll("_"," "))+'</td><td>'+esc(c.height_cm)+' cm</td><td>'+esc(c.weight_kg)+' kg</td><td><strong>'+Number(c.bmi).toFixed(1)+'</strong></td><td>'+esc(String(c.goal||"").replaceAll("_"," "))+'</td><td>'+esc(new Date(c.created_at).toLocaleString())+'</td><td>'+consultationCell+'</td></tr>';
  }).join(""):'<tr><td colspan="10">No customer profiles found.</td></tr>';
@@ -139,12 +144,14 @@ function contactMessage(text,isError=false){contactStatus.textContent=text;conta
 async function loadContactSettings(){const {data,error}=await supabase.from("contact_settings").select("*").eq("id",true).maybeSingle();if(error){contactMessage("Could not load contact settings: "+error.message,true);return;}const fields={businessEmail:"business_email",contactPhone:"contact_phone",whatsappNumber:"whatsapp_number",businessAddress:"business_address",workingHours:"working_hours",instagramUrl:"instagram_url",facebookUrl:"facebook_url",youtubeUrl:"youtube_url"};for(const [id,key] of Object.entries(fields))document.getElementById(id).value=data?.[key]||"";}
 document.getElementById("contactForm").addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("saveContact");btn.disabled=true;try{const {data:{session}}=await supabase.auth.getSession();if(!session||session.user.app_metadata?.role!=="admin")throw new Error("Admin access required.");const value=id=>document.getElementById(id).value.trim();const payload={id:true,business_email:value("businessEmail")||null,contact_phone:value("contactPhone")||null,whatsapp_number:value("whatsappNumber")||null,business_address:value("businessAddress")||null,working_hours:value("workingHours")||null,instagram_url:value("instagramUrl")||null,facebook_url:value("facebookUrl")||null,youtube_url:value("youtubeUrl")||null,updated_at:new Date().toISOString()};for(const key of ["instagram_url","facebook_url","youtube_url"])if(payload[key]&&!/^https:\/\//i.test(payload[key]))throw new Error("Social media links must start with https://");const {error}=await supabase.from("contact_settings").upsert(payload,{onConflict:"id"});if(error)throw error;contactMessage("Contact settings saved. The public website will now show the latest details.");}catch(err){contactMessage(err.message||"Could not save contact settings.",true);}finally{btn.disabled=false;}});
 
-async function loadConsultationEnquiries(){
- const target=document.getElementById("enquiriesBody");if(!target)return;
+async function loadConsultationEnquiries(archived=false){
+ const target=document.getElementById(archived?"closedEnquiriesBody":"enquiriesBody");if(!target)return;
  target.innerHTML='<tr><td colspan="7">Loading…</td></tr>';
  const {data,error}=await supabase.from("consultation_enquiries").select("*").order("appointment_date",{ascending:false}).order("appointment_time",{ascending:false});
  if(error){target.innerHTML='<tr><td colspan="7">Could not load consultation bookings.</td></tr>';message(error.message,true);return;}
- const rows=data||[];document.getElementById("enquiryCount").textContent=rows.length+" consultation booking"+(rows.length===1?"":"s");
+ const allRows=data||[];const rows=allRows.filter(item=>((item.consultation_stage||"Open")==="Closed")===archived);
+ if(archived){document.getElementById("closedEnquiryCount").textContent=rows.length+" closed consultation record"+(rows.length===1?"":"s");target.innerHTML=rows.length?rows.map(item=>'<tr><td><strong>'+esc(item.full_name)+'</strong></td><td>'+esc(item.phone_number)+'</td><td>'+esc(item.consultation_type)+'</td><td>'+esc(item.appointment_date||"—")+' '+esc(item.appointment_time||"—")+'</td><td>'+esc(item.suggestions||"—")+'</td><td>'+esc(item.consultant_notes||"—")+'</td><td>'+esc(item.package_offered||"—")+'</td></tr>').join(""):'<tr><td colspan="7">No closed consultations yet.</td></tr>';return;}
+ document.getElementById("enquiryCount").textContent=rows.length+" active consultation booking"+(rows.length===1?"":"s");
  target.innerHTML=rows.length?rows.map(item=>{
   const phone=String(item.phone_number||"").replace(/\D/g,"");
   const waText=encodeURIComponent("Hello "+item.full_name+", your "+item.consultation_type+" consultation at "+(item.consultation_type==="Offline"?"Kakinada, Andhra Pradesh":"Online")+" is scheduled for "+(item.appointment_date||"")+" at "+(item.appointment_time||"")+". Booking status: "+(item.status||"New")+".");
@@ -157,7 +164,7 @@ async function loadConsultationEnquiries(){
     <td><span class="pill">${esc(stage)}</span><br><small>Booking: ${esc(item.status||"New")}</small></td>
     <td>${phone?`<a target="_blank" rel="noopener noreferrer" href="https://wa.me/${phone}?text=${waText}">WhatsApp Confirmation</a>`:"—"}</td>
     <td><details id="consultation-detail-${item.id}"><summary style="cursor:pointer;color:#315c45;font-weight:bold">Consultation Details</summary><div style="min-width:280px;padding:12px 0">
-     <label>Consultation Process</label><select data-stage="${item.id}" style="width:100%;padding:9px;margin:5px 0 10px"><option ${stage==="Open"?"selected":""} value="Open">Open</option><option ${stage==="In Progress"?"selected":""} value="In Progress">In Progress</option><option ${stage==="Closed"?"selected":""} value="Closed">Closed</option></select>
+     <label>Consultation Process</label><select data-stage="${item.id}" style="width:100%;padding:9px;margin:5px 0 10px"><option ${stage==="Open"?"selected":""} value="Open">Open</option><option ${stage==="In Progress"?"selected":""} value="In Progress">In Progress</option><option ${stage==="Follow-up"?"selected":""} value="Follow-up">Follow-up</option><option ${stage==="Closed"?"selected":""} value="Closed">Closed</option></select>
      <label>Booking Status</label><select data-booking-status="${item.id}" style="width:100%;padding:9px;margin:5px 0 10px"><option ${item.status==="New"?"selected":""} value="New">New</option><option ${item.status==="Contacted"?"selected":""} value="Contacted">Contacted</option><option ${item.status==="Confirmed"?"selected":""} value="Confirmed">Confirmed</option><option ${item.status==="Cancelled"?"selected":""} value="Cancelled">Cancelled</option></select>
      <label>Consultant Suggestions / Advice</label><textarea data-suggestions="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.suggestions||"")}</textarea>
      <label>Consultant Notes / Follow-up</label><textarea data-notes="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.consultant_notes||"")}</textarea>
@@ -172,17 +179,18 @@ async function loadConsultationEnquiries(){
   const {error}=await supabase.from("consultation_enquiries").update({status:"Cancelled",consultation_stage:"Closed",updated_at:new Date().toISOString()}).eq("id",id);
   if(error){message(error.message,true);btn.disabled=false;return;}
   message("Consultation booking cancelled. The record is retained for history.");
-  await loadConsultationEnquiries();await loadCustomers();
+  await loadConsultationEnquiries();await loadCustomers();await loadConsultationEnquiries(true);
  }));
  target.querySelectorAll("[data-save-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
   const id=btn.dataset.saveConsultation;btn.disabled=true;
   const val=selector=>target.querySelector(selector.slice(0,-1)+'="'+id+'"]').value;
   const payload={consultation_stage:val("[data-stage]"),status:val("[data-booking-status]"),suggestions:val("[data-suggestions]").trim()||null,consultant_notes:val("[data-notes]").trim()||null,package_offered:val("[data-package]").trim()||null,updated_at:new Date().toISOString()};
   const {error}=await supabase.from("consultation_enquiries").update(payload).eq("id",id);btn.disabled=false;
-  if(error){message(error.message,true);return;}message("Consultation details saved.");await loadConsultationEnquiries();
+  if(error){message(error.message,true);return;}message(payload.consultation_stage==="Closed"?"Consultation closed and moved to Closed Consultations.":"Consultation details saved.");await loadConsultationEnquiries();await loadCustomers();await loadConsultationEnquiries(true);
  }));
 }
 document.getElementById("refreshEnquiries").addEventListener("click",loadConsultationEnquiries);
+document.getElementById("refreshClosedEnquiries").addEventListener("click",()=>loadConsultationEnquiries(true));
 const slotGrid=document.getElementById("adminSlotGrid"),slotStatus=document.getElementById("slotAdminStatus"),slotDateInput=document.getElementById("adminSlotDate");
 function slotMessage(text,isError=false){slotStatus.textContent=text;slotStatus.style.display="block";slotStatus.style.background=isError?"#fde8e7":"#edf2e7";slotStatus.style.color=isError?"#8c2923":"#244c32";}
 function slotTimeLabel(t){const [h,m]=t.split(":").map(Number);const d=new Date();d.setHours(h,m,0,0);return d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}
@@ -214,7 +222,7 @@ async function loadAdminSlots(){
 }
 slotDateInput.addEventListener("change",loadAdminSlots);document.getElementById("refreshSlots").addEventListener("click",loadAdminSlots);
 
-async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");adminLayout.classList.remove("hidden");activatePanel("dashboard");status.classList.remove("show");await loadCustomers();await loadAbout();await loadContactSettings();await loadConsultationEnquiries();const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
+async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");adminLayout.classList.remove("hidden");activatePanel("dashboard");status.classList.remove("show");await loadCustomers();await loadAbout();await loadContactSettings();await loadConsultationEnquiries();await loadConsultationEnquiries(true);const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
 document.getElementById("loginForm").addEventListener("submit",async e=>{e.preventDefault();const btn=e.currentTarget.querySelector("button");btn.disabled=true;try{const {error}=await supabase.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});if(error)throw error;await checkAdmin();}catch(err){message(err.message||"Admin sign in failed.",true);}finally{btn.disabled=false;}});
 document.getElementById("refresh").addEventListener("click",loadCustomers);document.getElementById("search").addEventListener("input",loadCustomers);document.getElementById("logout").addEventListener("click",async()=>{await supabase.auth.signOut();loginCard.classList.remove("hidden");adminLayout.classList.add("hidden");});checkAdmin();
 </script></body></html>
