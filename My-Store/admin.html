@@ -107,10 +107,26 @@ async function loadCustomers(){
   return '<tr><td>'+esc(c.full_name)+'</td><td>'+esc(c.phone_number)+'</td><td>'+esc(c.age)+'</td><td>'+esc(String(c.gender||"").replaceAll("_"," "))+'</td><td>'+esc(c.height_cm)+' cm</td><td>'+esc(c.weight_kg)+' kg</td><td><strong>'+Number(c.bmi).toFixed(1)+'</strong></td><td>'+esc(String(c.goal||"").replaceAll("_"," "))+'</td><td>'+esc(new Date(c.created_at).toLocaleString())+'</td><td>'+consultationCell+'</td></tr>';
  }).join(""):'<tr><td colspan="10">No customer profiles found.</td></tr>';
  body.querySelectorAll("[data-open-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
+  const bookingId=btn.dataset.openConsultation;
   activatePanel("consultationManager");
+  const manager=document.getElementById("consultationManager");
+  manager.scrollIntoView({behavior:"smooth",block:"start"});
   await loadConsultationEnquiries();
-  const details=document.getElementById("consultation-detail-"+btn.dataset.openConsultation);
-  if(details){details.open=true;details.scrollIntoView({behavior:"smooth",block:"center"});}
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  let details=document.getElementById("consultation-detail-"+bookingId);
+  if(!details){
+   await loadConsultationEnquiries();
+   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+   details=document.getElementById("consultation-detail-"+bookingId);
+  }
+  if(details){
+   details.open=true;
+   details.scrollIntoView({behavior:"smooth",block:"center"});
+   const summary=details.querySelector("summary");
+   if(summary){summary.setAttribute("tabindex","-1");summary.focus({preventScroll:true});}
+  }else{
+   message("This consultation booking could not be found. Please refresh Consultation Management and try again.",true);
+  }
  }));
 }
 const aboutStatus=document.getElementById("aboutStatus");
