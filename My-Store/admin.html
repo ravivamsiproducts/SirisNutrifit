@@ -2,13 +2,34 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f8f1"><title>SirisNutriFit | Admin Customers</title>
 <style>
 :root{--green:#315c45;--dark:#203f30;--cream:#f7f8f1;--text:#23332a;--muted:#68766d;--border:#e4e9df}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--text);font:15px/1.5 Arial,sans-serif}header{background:var(--dark);color:white;padding:20px 5%}header h1{margin:0;font-size:23px}header p{margin:5px 0 0;color:#dce9b8;font-size:13px}main{width:min(1200px,94%);margin:28px auto 60px}.card{background:white;border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:0 12px 35px #203f300c}h2{margin:0 0 8px;font-size:22px}.muted{color:var(--muted);font-size:13px}form{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:620px;margin-top:18px}label{font-size:12px;font-weight:bold}input{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;margin-top:5px}button{border:0;border-radius:999px;padding:12px 18px;background:var(--green);color:white;font-weight:bold;cursor:pointer}form button{grid-column:1/-1}button:disabled{opacity:.6;cursor:wait}#status{margin-top:14px;padding:12px;border-radius:10px;display:none;background:#fff2d8;color:#634a11;font-size:13px}#status.show{display:block}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0}input#search{max-width:350px;margin:0}.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:950px;background:white}th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:13px}th{background:#edf2e7;color:#314c3a;font-size:12px}tr:last-child td{border-bottom:0}.pill{display:inline-block;border-radius:999px;padding:4px 9px;background:#eaf4e5;color:#244c32;font-size:11px;font-weight:bold}.hidden{display:none!important}@media(max-width:600px){main{width:92%;margin-top:18px}.card{padding:18px}form{grid-template-columns:1fr}form button{grid-column:auto}header h1{font-size:20px}}
+
+.admin-layout{width:min(1400px,96%);margin:26px auto 60px;display:grid;grid-template-columns:245px minmax(0,1fr);gap:22px;align-items:start}
+.admin-sidebar{position:sticky;top:18px;background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:0 12px 35px #203f300c}
+.admin-sidebar h2{font-size:17px;margin:2px 8px 14px}
+.admin-sidebar .nav-item{display:block;width:100%;text-align:left;border-radius:10px;background:transparent;color:var(--text);padding:12px;margin:4px 0;font-weight:600}
+.admin-sidebar .nav-item:hover{background:#edf2e7}
+.admin-sidebar .nav-item.active{background:var(--green);color:#fff}
+.admin-content{min-width:0}
+.admin-panel{margin:0!important}
+.admin-panel.hidden{display:none!important}
+@media(max-width:760px){.admin-layout{grid-template-columns:1fr;width:94%;gap:14px}.admin-sidebar{position:static;display:flex;gap:6px;overflow-x:auto;align-items:center;padding:10px}.admin-sidebar h2{display:none}.admin-sidebar .nav-item{width:auto;min-width:max-content;margin:0;padding:10px 12px}.admin-content{min-width:0}}
 </style></head><body>
 <header><h1>✳ SirisNutriFit — Admin</h1><p>Customer profiles and BMI overview</p></header>
 <main><section class="card" id="loginCard"><h2>Admin sign in</h2><p class="muted">Use the administrator account configured for this SirisNutriFit Supabase project.</p>
 <form id="loginForm"><div><label for="email">Admin email</label><input id="email" type="email" autocomplete="username" required></div><div><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div><button type="submit">Sign in to Admin</button></form><div id="status" role="status"></div></section>
-<section class="card hidden" id="dashboard"><div class="toolbar"><div><h2>Customers</h2><p class="muted" id="count">Loading customer profiles…</p></div><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="search" type="search" placeholder="Search name or phone" aria-label="Search customers"><button id="refresh" type="button">Refresh</button><button id="logout" type="button">Sign out</button></div></div>
+<div id="adminLayout" class="admin-layout hidden">
+<aside class="admin-sidebar" aria-label="Admin navigation">
+<h2>Admin Menu</h2>
+<button type="button" class="nav-item active" data-panel="dashboard">Customers</button>
+<button type="button" class="nav-item" data-panel="contactManager">Contact Settings</button>
+<button type="button" class="nav-item" data-panel="consultationManager">Consultation Management</button>
+<button type="button" class="nav-item" data-panel="slotManager">Consultation Slot Availability</button>
+<button type="button" class="nav-item" data-panel="aboutManager">About Page</button>
+</aside>
+<div class="admin-content">
+<section class="card admin-panel" id="dashboard"><div class="toolbar"><div><h2>Customers</h2><p class="muted" id="count">Loading customer profiles…</p></div><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="search" type="search" placeholder="Search name or phone" aria-label="Search customers"><button id="refresh" type="button">Refresh</button><button id="logout" type="button">Sign out</button></div></div>
 <div class="table-wrap"><table><thead><tr><th>Full name</th><th>Contact number</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Account created</th><th>Status</th></tr></thead><tbody id="customersBody"><tr><td colspan="10">Loading…</td></tr></tbody></table></div><p class="muted" style="margin-top:12px">Customer health details are private. Only an authenticated account explicitly assigned the admin role can view this list.</p></section>
-<section class="card hidden" id="aboutManager" style="margin-top:20px">
+<section class="card admin-panel hidden" id="aboutManager" style="margin-top:20px">
 <h2>About Page & Presentation</h2>
 <p class="muted">Edit the public About section and upload a PDF. Visitors will see the PDF as navigable presentation slides on the website.</p>
 <form id="aboutForm" style="max-width:760px">
@@ -20,7 +41,7 @@
 </form><div id="aboutStatus" role="status" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:#edf2e7;font-size:13px"></div>
 <p id="currentPresentation" class="muted" style="margin-top:12px">Loading current About page…</p>
 </section>
-<section class="card hidden" id="contactManager" style="margin-top:20px">
+<section class="card admin-panel hidden" id="contactManager" style="margin-top:20px">
 <h2>Contact Settings</h2>
 <p class="muted">Update the public contact details shown in the website footer. These fields are visible to all visitors.</p>
 <form id="contactForm" style="max-width:760px">
@@ -35,17 +56,17 @@
 <button type="submit" id="saveContact" style="grid-column:1/-1">Save Contact Settings</button>
 </form><div id="contactStatus" role="status" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:#edf2e7;font-size:13px"></div>
 </section>
-<section class="card hidden" id="consultationManager" style="margin-top:20px">
+<section class="card admin-panel hidden" id="consultationManager" style="margin-top:20px">
 <div class="toolbar"><div><h2>Consultation Management</h2><p class="muted" id="enquiryCount">Manage customer appointments, follow-ups and package offers.</p></div><button type="button" id="refreshEnquiries">Refresh</button></div>
 <div class="table-wrap"><table style="min-width:1100px"><thead><tr><th>Customer</th><th>Phone</th><th>Type / Location</th><th>Appointment</th><th>Consultation</th><th>WhatsApp</th><th>Manage</th></tr></thead><tbody id="enquiriesBody"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
 <p class="muted" style="margin-top:12px">Select Consultation Details to update progress, notes, suggestions and package offers. WhatsApp opens a pre-filled message for you to review and send.</p>
 </section>
-<section class="card hidden" id="slotManager" style="margin-top:20px">
+<section class="card admin-panel hidden" id="slotManager" style="margin-top:20px">
 <div class="toolbar"><div><h2>Consultation Slot Availability</h2><p class="muted">Choose a date and switch each 30-minute slot Available / Inactive. Changes reflect on the public booking page.</p></div><button type="button" id="refreshSlots">Refresh Slots</button></div>
 <div style="max-width:420px"><label for="adminSlotDate">Select date (Monday–Saturday)</label><input id="adminSlotDate" type="date"></div>
 <div id="adminSlotGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px"></div>
 <div id="slotAdminStatus" role="status" style="display:none;margin-top:14px;padding:12px;border-radius:10px;font-size:13px"></div>
-</section></main>
+</section></div></div></main>
 <script>
 window.addEventListener("error",function(e){var s=document.getElementById("status");if(s){s.textContent="Admin page script error: "+(e.message||"Please reload the page.");s.classList.add("show");s.style.background="#fde8e7";s.style.color="#8c2923";}});
 window.addEventListener("unhandledrejection",function(e){var s=document.getElementById("status");if(s){s.textContent="Admin page error: "+(e.reason&&e.reason.message?e.reason.message:String(e.reason||"Unknown error"));s.classList.add("show");s.style.background="#fde8e7";s.style.color="#8c2923";}});
@@ -54,6 +75,13 @@ window.addEventListener("unhandledrejection",function(e){var s=document.getEleme
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabase=createClient("https://ulmwkqvjhmcevduonjpm.supabase.co","sb_publishable_P98M8aUwv4b_F0NLVscOvA_4quM8WKL");
 const loginCard=document.getElementById("loginCard"),dashboard=document.getElementById("dashboard"),status=document.getElementById("status"),body=document.getElementById("customersBody");
+const adminLayout=document.getElementById("adminLayout");
+function activatePanel(id){
+ document.querySelectorAll(".admin-panel").forEach(panel=>panel.classList.toggle("hidden",panel.id!==id));
+ document.querySelectorAll(".admin-sidebar .nav-item").forEach(button=>button.classList.toggle("active",button.dataset.panel===id));
+}
+document.querySelectorAll(".admin-sidebar .nav-item").forEach(button=>button.addEventListener("click",()=>activatePanel(button.dataset.panel)));
+
 function message(text,error=false){status.textContent=text;status.classList.add("show");status.style.background=error?"#fde8e7":"#fff2d8";status.style.color=error?"#8c2923":"#634a11";}
 function esc(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 async function loadCustomers(){
@@ -147,7 +175,7 @@ async function loadAdminSlots(){
 }
 slotDateInput.addEventListener("change",loadAdminSlots);document.getElementById("refreshSlots").addEventListener("click",loadAdminSlots);
 
-async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");dashboard.classList.remove("hidden");status.classList.remove("show");await loadCustomers();await loadAbout();document.getElementById("contactManager").classList.remove("hidden");document.getElementById("consultationManager").classList.remove("hidden");document.getElementById("slotManager").classList.remove("hidden");await loadContactSettings();await loadConsultationEnquiries();const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
+async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");adminLayout.classList.remove("hidden");activatePanel("dashboard");status.classList.remove("show");await loadCustomers();await loadAbout();await loadContactSettings();await loadConsultationEnquiries();const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
 document.getElementById("loginForm").addEventListener("submit",async e=>{e.preventDefault();const btn=e.currentTarget.querySelector("button");btn.disabled=true;try{const {error}=await supabase.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});if(error)throw error;await checkAdmin();}catch(err){message(err.message||"Admin sign in failed.",true);}finally{btn.disabled=false;}});
-document.getElementById("refresh").addEventListener("click",loadCustomers);document.getElementById("search").addEventListener("input",loadCustomers);document.getElementById("logout").addEventListener("click",async()=>{await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");document.getElementById("contactManager").classList.add("hidden");document.getElementById("consultationManager").classList.add("hidden");document.getElementById("slotManager").classList.add("hidden");});checkAdmin();
+document.getElementById("refresh").addEventListener("click",loadCustomers);document.getElementById("search").addEventListener("input",loadCustomers);document.getElementById("logout").addEventListener("click",async()=>{await supabase.auth.signOut();loginCard.classList.remove("hidden");adminLayout.classList.add("hidden");});checkAdmin();
 </script></body></html>
