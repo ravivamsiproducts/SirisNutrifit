@@ -999,15 +999,24 @@
 <article class="consult-card light"><div class="big-icon">📍</div><h3>Offline Consultation</h3><p>Request an in-person appointment. Location and availability will be confirmed by our team.</p><button class="btn" type="button" data-book-consultation="Offline">Book Offline Consultation →</button></article>
 </div>
 <div id="consultationBookingPanel" class="onboarding-card" style="display:none;margin:32px auto 0;max-width:760px">
-<div class="section-heading" style="margin-bottom:18px"><span class="eyebrow">Appointment request</span><h2 id="bookingHeading">Book Consultation</h2><p id="bookingProfileSummary"></p></div>
-<form id="consultationBookingForm" class="profile-grid">
-<input type="hidden" id="bookingConsultationType">
-<div class="field"><label for="bookingDate">Preferred Date *</label><input id="bookingDate" type="date" required></div>
-<div class="field"><label for="bookingTime">Preferred Time *</label><input id="bookingTime" type="time" required></div>
-<div class="field full"><label for="bookingMessage">Message (optional)</label><textarea id="bookingMessage" rows="3" maxlength="1500" placeholder="Any additional details for the consultant" style="width:100%;padding:12px;border:1px solid #dce4d9;border-radius:12px;font:inherit"></textarea></div>
-<button class="onboarding-submit field full" type="submit" id="submitConsultationBooking">Submit Booking Request →</button>
-<button class="btn btn-outline field full" type="button" id="cancelConsultationBooking">Cancel</button>
-</form><div id="consultationBookingStatus" class="auth-message" role="status" aria-live="polite"></div>
+<div class="section-heading" style="margin-bottom:18px"><span class="eyebrow">Appointment booking</span><h2 id="bookingHeading">Choose an available slot</h2><p id="bookingProfileSummary"></p></div>
+<div id="offlineLocationNotice" class="auth-message" style="display:none;margin-bottom:18px;background:#fff7e6;color:#654b12">
+<strong>Offline Consultation – Kakinada</strong><p style="margin:8px 0">Offline appointments are available at Kakinada only. If you can travel to Kakinada for your appointment, continue to view available slots.</p>
+<button type="button" class="btn" id="continueKakinadaBooking">I can visit Kakinada – Continue →</button>
+</div>
+<div id="slotBookingArea" style="display:none">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0">
+<button type="button" class="btn btn-outline" id="previousSlotDay">← Previous day</button>
+<div style="text-align:center;flex:1;min-width:160px"><strong id="slotDateHeading">Available slots</strong><div id="slotDateSubheading" style="font-size:13px;color:#687568;margin-top:4px">Monday – Saturday · 9:00 AM – 6:00 PM</div></div>
+<button type="button" class="btn btn-outline" id="nextSlotDay">Next day →</button>
+</div>
+<div id="consultationSlotGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px"></div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin:14px 0;font-size:13px"><span>🟩 Available</span><span>⬜ Booked</span><span>🟦 Selected</span></div>
+<div class="field full" style="margin-top:18px"><label for="bookingMessage">Message (optional)</label><textarea id="bookingMessage" rows="3" maxlength="1500" placeholder="Any additional details for the consultant" style="width:100%;padding:12px;border:1px solid #dce4d9;border-radius:12px;font:inherit"></textarea></div>
+<button class="onboarding-submit field full" type="button" id="submitConsultationBooking" disabled>Confirm Booking →</button>
+</div>
+<button class="btn btn-outline field full" type="button" id="cancelConsultationBooking" style="margin-top:14px">Cancel</button>
+<div id="consultationBookingStatus" class="auth-message" role="status" aria-live="polite"></div>
 </div>
 </div></section>
 
@@ -1404,30 +1413,81 @@
 
     const bookingPanel=document.getElementById("consultationBookingPanel");
     const bookingStatus=document.getElementById("consultationBookingStatus");
-    const bookingForm=document.getElementById("consultationBookingForm");
-    const todayLocal=new Date();const localDate=new Date(todayLocal.getTime()-todayLocal.getTimezoneOffset()*60000).toISOString().slice(0,10);
-    document.getElementById("bookingDate").min=localDate;
+    const slotGrid=document.getElementById("consultationSlotGrid");
+    const slotArea=document.getElementById("slotBookingArea");
+    const offlineNotice=document.getElementById("offlineLocationNotice");
+    const localNow=new Date();
+    const localDate=new Date(localNow.getTime()-localNow.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    let selectedConsultationDate=localDate,selectedConsultationTime=null,activeConsultationProfile=null,activeConsultationType="Online",slotLoadSequence=0;
+    function dateOnly(date){return new Date(date+"T12:00:00");}
+    function addDays(date,days){const d=dateOnly(date);d.setDate(d.getDate()+days);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+    function isWorkingDay(date){const day=dateOnly(date).getDay();return day>=1&&day<=6;}
+    function nextWorkingDate(date){let d=date;do{d=addDays(d,1);}while(!isWorkingDay(d));return d;}
+    function formatSlotDate(date){return dateOnly(date).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
+    function showBookingStatus(message,isError=false){bookingStatus.textContent=message;bookingStatus.style.background=isError?"#fde8e7":"#eaf4e5";bookingStatus.style.color=isError?"#8c2923":"#244c32";bookingStatus.classList.add("visible");}
+    function timeLabel(value){const parts=String(value).split(":");const d=new Date();d.setHours(Number(parts[0]),Number(parts[1]),0,0);return d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}
+    async function loadConsultationSlots(date,allowAutoAdvance=true){
+      const sequence=++slotLoadSequence;selectedConsultationDate=date;selectedConsultationTime=null;
+      document.getElementById("submitConsultationBooking").disabled=true;
+      document.getElementById("slotDateHeading").textContent=formatSlotDate(date);
+      document.getElementById("slotDateSubheading").textContent="Monday – Saturday · 9:00 AM – 6:00 PM · 30-minute appointments";
+      slotGrid.innerHTML='<p style="grid-column:1/-1;text-align:center;color:#687568">Checking available slots…</p>';
+      document.getElementById("previousSlotDay").disabled=date<=localDate;
+      try{
+        const {data,error}=await supabase.rpc("get_available_consultation_slots",{p_date:date});
+        if(error)throw error;if(sequence!==slotLoadSequence)return;
+        const rows=data||[],available=rows.filter(row=>row.is_available);
+        if(!available.length&&allowAutoAdvance){
+          let next=nextWorkingDate(date);
+          for(let i=0;i<14;i++){
+            const {data:nextRows,error:nextError}=await supabase.rpc("get_available_consultation_slots",{p_date:next});
+            if(nextError)throw nextError;if(sequence!==slotLoadSequence)return;
+            if((nextRows||[]).some(row=>row.is_available)){showBookingStatus("All slots for "+formatSlotDate(date)+" are booked. Showing the next available day.",false);return loadConsultationSlots(next,false);}
+            next=nextWorkingDate(next);
+          }
+        }
+        slotGrid.innerHTML="";
+        if(!rows.length||!available.length){slotGrid.innerHTML='<p style="grid-column:1/-1;text-align:center;color:#687568">No available slots on this date. Use Next day to check another date.</p>';return;}
+        rows.forEach(row=>{
+          const button=document.createElement("button");button.type="button";button.textContent=timeLabel(row.slot_time);button.disabled=!row.is_available;
+          button.style.cssText="padding:13px 8px;border:1px solid "+(row.is_available?"#43a66b":"#d7ddd7")+";border-radius:12px;background:"+(row.is_available?"#eaf7ee":"#f1f3f1")+";color:"+(row.is_available?"#176338":"#929992")+";font:600 14px Arial,sans-serif;cursor:"+(row.is_available?"pointer":"not-allowed");
+          button.setAttribute("aria-label",timeLabel(row.slot_time)+(row.is_available?" available":" booked"));
+          if(row.is_available){button.addEventListener("click",()=>{selectedConsultationTime=row.slot_time;slotGrid.querySelectorAll("button").forEach(b=>{if(!b.disabled){b.style.background="#eaf7ee";b.style.borderColor="#43a66b";b.style.color="#176338";}});button.style.background="#e6f0ff";button.style.borderColor="#3478d4";button.style.color="#174c91";document.getElementById("submitConsultationBooking").disabled=false;});}
+          else button.title="Already booked";
+          slotGrid.appendChild(button);
+        });
+      }catch(error){if(sequence!==slotLoadSequence)return;slotGrid.innerHTML='<p style="grid-column:1/-1;color:#8c2923">Could not load slots. Please try again.</p>';showBookingStatus(error.message||"Could not load available slots.",true);}
+    }
     document.querySelectorAll("[data-book-consultation]").forEach(button=>button.addEventListener("click",()=>{
       let profile=null;try{profile=JSON.parse(localStorage.getItem("sirisnutrifit_saved_profile")||"null");}catch(_){}
-      if(!profile||!profile.full_name||!profile.phone_number){bookingPanel.style.display="block";bookingStatus.textContent="Please complete your customer details on the Welcome page before booking a consultation.";bookingStatus.style.background="#fff2d8";bookingStatus.style.color="#634a11";bookingStatus.classList.add("visible");bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});return;}
-      document.getElementById("bookingConsultationType").value=button.dataset.bookConsultation;
-      document.getElementById("bookingHeading").textContent="Book "+button.dataset.bookConsultation+" Consultation";
+      if(!profile||!profile.full_name||!profile.phone_number){bookingPanel.style.display="block";showBookingStatus("Please complete your customer details on the Welcome page before booking a consultation.",true);bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});return;}
+      activeConsultationProfile=profile;activeConsultationType=button.dataset.bookConsultation;selectedConsultationTime=null;
+      document.getElementById("bookingHeading").textContent="Book "+activeConsultationType+" Consultation";
       document.getElementById("bookingProfileSummary").textContent="Booking for "+profile.full_name+" · "+profile.phone_number;
-      bookingStatus.classList.remove("visible");bookingPanel.style.display="block";bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});
+      bookingStatus.classList.remove("visible");bookingPanel.style.display="block";
+      offlineNotice.style.display=activeConsultationType==="Offline"?"block":"none";
+      slotArea.style.display=activeConsultationType==="Online"?"block":"none";
+      if(activeConsultationType==="Online")loadConsultationSlots(localDate,true);
+      bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});
     }));
-    document.getElementById("cancelConsultationBooking").addEventListener("click",()=>{bookingForm.reset();bookingPanel.style.display="none";bookingStatus.classList.remove("visible");});
-    bookingForm.addEventListener("submit",async event=>{
-      event.preventDefault();if(!bookingForm.reportValidity())return;
-      let profile=null;try{profile=JSON.parse(localStorage.getItem("sirisnutrifit_saved_profile")||"null");}catch(_){}
-      if(!profile||!profile.full_name||!profile.phone_number){bookingStatus.textContent="Customer details are missing. Please complete your profile first.";bookingStatus.classList.add("visible");return;}
-      const date=document.getElementById("bookingDate").value,time=document.getElementById("bookingTime").value,type=document.getElementById("bookingConsultationType").value;
-      if(date<localDate){bookingStatus.textContent="Please choose today or a future date.";bookingStatus.classList.add("visible");return;}
+    document.getElementById("continueKakinadaBooking").addEventListener("click",()=>{
+      offlineNotice.style.display="none";slotArea.style.display="block";
+      showBookingStatus("You selected Kakinada, Andhra Pradesh as your offline consultation location. Please choose a slot you can attend.",false);
+      loadConsultationSlots(localDate,true);
+    });
+    document.getElementById("previousSlotDay").addEventListener("click",()=>{if(selectedConsultationDate>localDate){let d=addDays(selectedConsultationDate,-1);while(d>localDate&&!isWorkingDay(d))d=addDays(d,-1);if(isWorkingDay(d))loadConsultationSlots(d,true);}});
+    document.getElementById("nextSlotDay").addEventListener("click",()=>loadConsultationSlots(nextWorkingDate(selectedConsultationDate),true));
+    document.getElementById("cancelConsultationBooking").addEventListener("click",()=>{bookingPanel.style.display="none";slotArea.style.display="none";offlineNotice.style.display="none";bookingStatus.classList.remove("visible");selectedConsultationTime=null;});
+    document.getElementById("submitConsultationBooking").addEventListener("click",async()=>{
+      if(!activeConsultationProfile||!selectedConsultationTime){showBookingStatus("Please select an available time slot.",true);return;}
       const btn=document.getElementById("submitConsultationBooking");btn.disabled=true;bookingStatus.classList.remove("visible");
       try{
-        const {error}=await supabase.from("consultation_enquiries").insert({full_name:profile.full_name,phone_number:profile.phone_number,email:profile.email||null,consultation_type:type,appointment_date:date,appointment_time:time,preferred_time:new Date(date+"T"+time).toLocaleString(),message:document.getElementById("bookingMessage").value.trim()||null});
+        const {data,error}=await supabase.rpc("book_consultation_slot",{p_full_name:activeConsultationProfile.full_name,p_phone_number:activeConsultationProfile.phone_number,p_email:activeConsultationProfile.email||null,p_consultation_type:activeConsultationType,p_date:selectedConsultationDate,p_time:selectedConsultationTime,p_message:document.getElementById("bookingMessage").value.trim()||null});
         if(error)throw error;
-        bookingForm.reset();bookingPanel.style.display="none";bookingStatus.textContent="Your "+type.toLowerCase()+" consultation request for "+date+" at "+time+" has been submitted. Our team will contact you to confirm.";bookingStatus.style.background="#eaf4e5";bookingStatus.style.color="#244c32";bookingStatus.classList.add("visible");bookingPanel.style.display="block";
-      }catch(error){bookingStatus.textContent=error.message||"Could not submit booking. Please try again.";bookingStatus.style.background="#fde8e7";bookingStatus.style.color="#8c2923";bookingStatus.classList.add("visible");}finally{btn.disabled=false;}
+        showBookingStatus("Your "+activeConsultationType.toLowerCase()+" consultation is booked for "+formatSlotDate(selectedConsultationDate)+" at "+timeLabel(selectedConsultationTime)+". Our team will contact you with the details.",false);
+        slotArea.style.display="none";offlineNotice.style.display="none";
+      }catch(error){showBookingStatus(error.message||"This slot could not be booked. Please select another slot.",true);await loadConsultationSlots(selectedConsultationDate,false);}
+      finally{btn.disabled=!selectedConsultationTime;}
     });
 </script>
 
