@@ -64,7 +64,7 @@
 </section>
 <section class="card admin-panel hidden" id="closedConsultations">
 <div class="toolbar"><div><h2>Closed Customers</h2><p class="muted" id="closedEnquiryCount">Completed customers and their full service history.</p></div><button type="button" id="refreshClosedEnquiries">Refresh</button></div>
-<div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer Profile</th><th>Phone</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Completed Services / History</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="9">Loading…</td></tr></tbody></table></div>
+<div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer Profile</th><th>Phone</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Completed Services / History</th><th>Action</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="9">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="card admin-panel hidden" id="slotManager" style="margin-top:20px">
 <div class="toolbar"><div><h2>Consultation Slot Availability</h2><p class="muted">Choose a date and switch each 30-minute slot Available / Inactive. Changes reflect on the public booking page.</p></div><button type="button" id="refreshSlots">Refresh Slots</button></div>
@@ -156,16 +156,33 @@ async function syncCustomerArchive(phone){
 }
 async function loadClosedCustomers(){
  const target=document.getElementById("closedEnquiriesBody");if(!target)return;
- target.innerHTML='<tr><td colspan="9">Loading closed customers…</td></tr>';
+ target.innerHTML='<tr><td colspan="10">Loading closed customers…</td></tr>';
  const [{data:profiles,error:pe},{data:bookings,error:be}]=await Promise.all([supabase.from("customer_profiles").select("id,full_name,phone_number,age,gender,height_cm,weight_kg,bmi,goal,created_at,customer_status").eq("customer_status","Closed").order("updated_at",{ascending:false}),supabase.from("consultation_enquiries").select("*").eq("consultation_stage","Closed").neq("status","Cancelled").order("appointment_date",{ascending:false})]);
- if(pe||be){message((pe||be).message,true);target.innerHTML='<tr><td colspan="9">Could not load closed customers.</td></tr>';return;}
+ if(pe||be){message((pe||be).message,true);target.innerHTML='<tr><td colspan="10">Could not load closed customers.</td></tr>';return;}
  const completed=bookings||[],rows=(profiles||[]).filter(p=>completed.some(b=>String(b.phone_number||"").replace(/\D/g,"")===String(p.phone_number||"").replace(/\D/g,"")));
  document.getElementById("closedEnquiryCount").textContent=rows.length+" closed customer"+(rows.length===1?"":"s");
  target.innerHTML=rows.length?rows.map(p=>{
   const norm=String(p.phone_number||"").replace(/\D/g,""),history=completed.filter(b=>String(b.phone_number||"").replace(/\D/g,"")===norm);
   const historyHtml=history.map(b=>'<details style="margin:4px 0"><summary style="cursor:pointer;color:#315c45;font-weight:bold">'+esc(b.appointment_date||"")+" · "+esc(b.appointment_time||"")+" · "+esc(b.consultation_type)+'</summary><div style="padding:8px 0"><p><strong>Suggestions:</strong> '+esc(b.suggestions||"—")+'</p><p><strong>Notes / Follow-up:</strong> '+esc(b.consultant_notes||"—")+'</p><p><strong>Package:</strong> '+esc(b.package_offered||"—")+'</p></div></details>').join("");
-  return '<tr><td><strong>'+esc(p.full_name)+'</strong><br><small>Closed customer</small></td><td>'+esc(p.phone_number)+'</td><td>'+esc(p.age)+'</td><td>'+esc(p.gender)+'</td><td>'+esc(p.height_cm)+' cm</td><td>'+esc(p.weight_kg)+' kg</td><td>'+esc(p.bmi)+'</td><td>'+esc(p.goal)+'</td><td>'+historyHtml+'</td></tr>';
- }).join(""):'<tr><td colspan="9">No closed customers yet.</td></tr>';
+  return '<tr><td><strong>'+esc(p.full_name)+'</strong><br><small>Closed customer</small></td><td>'+esc(p.phone_number)+'</td><td>'+esc(p.age)+'</td><td>'+esc(p.gender)+'</td><td>'+esc(p.height_cm)+'</td><td>'+esc(p.weight_kg)+'</td><td>'+esc(p.bmi)+'</td><td>'+esc(p.goal)+'</td><td>'+historyHtml+'</td><td><button type="button" data-reactivate-customer="'+p.id+'" style="padding:8px 12px">Make Active</button></td></tr>';
+ }).join(""):'<tr><td colspan="10">No closed customers yet.</tr>';
+ target.querySelectorAll("[data-reactivate-customer]").forEach(btn=>btn.addEventListener("click",async()=>{
+  const profileId=btn.dataset.reactivateCustomer;
+  const profile=(profiles||[]).find(x=>x.id===profileId);
+  if(!profile)return;
+  if(!window.confirm("Make "+profile.full_name+" active again? The customer will return to Customers and the latest closed consultation will move to Follow-up."))return;
+  btn.disabled=true;
+  const norm=String(profile.phone_number||"").replace(/\D/g,"");
+  const latest=completed.filter(x=>String(x.phone_number||"").replace(/\D/g,"")===norm).sort((a,b)=>String(b.appointment_date||"").localeCompare(String(a.appointment_date||""))||String(b.appointment_time||"").localeCompare(String(a.appointment_time||"")))[0];
+  const {error:profileError}=await supabase.from("customer_profiles").update({customer_status:"Active",updated_at:new Date().toISOString()}).eq("id",profileId);
+  if(profileError){message(profileError.message,true);btn.disabled=false;return;}
+  if(latest){
+   const {error:bookingError}=await supabase.from("consultation_enquiries").update({consultation_stage:"Follow-up",updated_at:new Date().toISOString()}).eq("id",latest.id);
+   if(bookingError){await supabase.from("customer_profiles").update({customer_status:"Closed"}).eq("id",profileId);message(bookingError.message,true);btn.disabled=false;return;}
+  }
+  message(profile.full_name+" is active again and moved back to Customers. Follow-up is available in Consultation Management.");
+  await loadClosedCustomers();await loadCustomers();await loadConsultationEnquiries();
+ }));
 }
 async function loadConsultationEnquiries(archived=false){
  const target=document.getElementById(archived?"closedEnquiriesBody":"enquiriesBody");if(!target)return;
