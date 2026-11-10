@@ -1482,8 +1482,15 @@
       if(!activeConsultationProfile||!selectedConsultationTime){showBookingStatus("Please select an available time slot.",true);return;}
       const btn=document.getElementById("submitConsultationBooking");btn.disabled=true;bookingStatus.classList.remove("visible");
       try{
-        const {data,error}=await supabase.rpc("book_consultation_slot",{p_full_name:activeConsultationProfile.full_name,p_phone_number:activeConsultationProfile.phone_number,p_email:activeConsultationProfile.email||null,p_consultation_type:activeConsultationType,p_date:selectedConsultationDate,p_time:selectedConsultationTime,p_message:document.getElementById("bookingMessage").value.trim()||null});
-        if(error)throw error;
+        const bookingArgs={p_full_name:activeConsultationProfile.full_name,p_phone_number:activeConsultationProfile.phone_number,p_email:activeConsultationProfile.email||null,p_consultation_type:activeConsultationType,p_date:selectedConsultationDate,p_time:selectedConsultationTime,p_message:document.getElementById("bookingMessage").value.trim()||null,p_confirm_duplicate:false};
+        let result=await supabase.rpc("book_consultation_slot",bookingArgs);
+        if(result.error&&String(result.error.message||"").includes("DUPLICATE_BOOKING_CONFIRM_REQUIRED")){
+          const accepted=window.confirm("You already have a consultation booking with this phone number. Do you want to book an additional consultation? Choose OK only if you want another booking.");
+          if(!accepted){showBookingStatus("Your existing consultation booking is unchanged. No additional booking was created.",false);return;}
+          bookingArgs.p_confirm_duplicate=true;
+          result=await supabase.rpc("book_consultation_slot",bookingArgs);
+        }
+        if(result.error)throw result.error;
         showBookingStatus("Your "+activeConsultationType.toLowerCase()+" consultation is booked for "+formatSlotDate(selectedConsultationDate)+" at "+timeLabel(selectedConsultationTime)+". Our team will contact you with the details.",false);
         slotArea.style.display="none";offlineNotice.style.display="none";
       }catch(error){showBookingStatus(error.message||"This slot could not be booked. Please select another slot.",true);await loadConsultationSlots(selectedConsultationDate,false);}
