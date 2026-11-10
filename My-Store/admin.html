@@ -8,7 +8,7 @@
 <form id="loginForm"><div><label for="email">Admin email</label><input id="email" type="email" autocomplete="username" required></div><div><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div><button type="submit">Sign in to Admin</button></form><div id="status" role="status"></div></section>
 <section class="card hidden" id="dashboard"><div class="toolbar"><div><h2>Customers</h2><p class="muted" id="count">Loading customer profiles…</p></div><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="search" type="search" placeholder="Search name or phone" aria-label="Search customers"><button id="refresh" type="button">Refresh</button><button id="logout" type="button">Sign out</button></div></div>
 <div class="table-wrap"><table><thead><tr><th>Full name</th><th>Contact number</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Account created</th><th>Status</th></tr></thead><tbody id="customersBody"><tr><td colspan="10">Loading…</td></tr></tbody></table></div><p class="muted" style="margin-top:12px">Customer health details are private. Only an authenticated account explicitly assigned the admin role can view this list.</p></section>
-<section class="card" id="aboutManager" style="margin-top:20px">
+<section class="card hidden" id="aboutManager" style="margin-top:20px">
 <h2>About Page & Presentation</h2>
 <p class="muted">Edit the public About section and upload a PDF. Visitors will see the PDF as navigable presentation slides on the website.</p>
 <form id="aboutForm" style="max-width:760px">
@@ -46,6 +46,10 @@
 <div id="adminSlotGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px"></div>
 <div id="slotAdminStatus" role="status" style="display:none;margin-top:14px;padding:12px;border-radius:10px;font-size:13px"></div>
 </section></main>
+<script>
+window.addEventListener("error",function(e){var s=document.getElementById("status");if(s){s.textContent="Admin page script error: "+(e.message||"Please reload the page.");s.classList.add("show");s.style.background="#fde8e7";s.style.color="#8c2923";}});
+window.addEventListener("unhandledrejection",function(e){var s=document.getElementById("status");if(s){s.textContent="Admin page error: "+(e.reason&&e.reason.message?e.reason.message:String(e.reason||"Unknown error"));s.classList.add("show");s.style.background="#fde8e7";s.style.color="#8c2923";}});
+</script>
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabase=createClient("https://ulmwkqvjhmcevduonjpm.supabase.co","sb_publishable_P98M8aUwv4b_F0NLVscOvA_4quM8WKL");
