@@ -23,7 +23,7 @@
 <button type="button" class="nav-item active" data-panel="dashboard">Customers</button>
 <button type="button" class="nav-item" data-panel="contactManager">Contact Settings</button>
 <button type="button" class="nav-item" data-panel="consultationManager">Consultation Management</button>
-<button type="button" class="nav-item" data-panel="closedConsultations">Closed Consultations</button>
+<button type="button" class="nav-item" data-panel="closedConsultations">Closed Customers</button>
 <button type="button" class="nav-item" data-panel="slotManager">Consultation Slot Availability</button>
 <button type="button" class="nav-item" data-panel="aboutManager">About Page</button>
 </aside>
@@ -63,8 +63,8 @@
 <p class="muted" style="margin-top:12px">Select Consultation Details to update progress, notes, suggestions and package offers. WhatsApp opens a pre-filled message for you to review and send.</p>
 </section>
 <section class="card admin-panel hidden" id="closedConsultations">
-<div class="toolbar"><div><h2>Closed Consultations</h2><p class="muted" id="closedEnquiryCount">Completed consultation records are archived here.</p></div><button type="button" id="refreshClosedEnquiries">Refresh</button></div>
-<div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer</th><th>Phone</th><th>Type</th><th>Appointment</th><th>Consultant Suggestions</th><th>Notes / Follow-up</th><th>Package</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+<div class="toolbar"><div><h2>Closed Customers</h2><p class="muted" id="closedEnquiryCount">Completed customers and their full service history.</p></div><button type="button" id="refreshClosedEnquiries">Refresh</button></div>
+<div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer Profile</th><th>Phone</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Completed Services / History</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="9">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="card admin-panel hidden" id="slotManager" style="margin-top:20px">
 <div class="toolbar"><div><h2>Consultation Slot Availability</h2><p class="muted">Choose a date and switch each 30-minute slot Available / Inactive. Changes reflect on the public booking page.</p></div><button type="button" id="refreshSlots">Refresh Slots</button></div>
@@ -97,14 +97,14 @@ function consultationDateTime(date,time){
 async function loadCustomers(){
  body.innerHTML='<tr><td colspan="10">Loading…</td></tr>';
  const [{data,error},{data:consultations, error:consultationError}]=await Promise.all([
-  supabase.from("customer_profiles").select("user_id,full_name,phone_number,age,gender,height_cm,weight_kg,bmi,goal,created_at").order("created_at",{ascending:false}),
+  supabase.from("customer_profiles").select("user_id,full_name,phone_number,age,gender,height_cm,weight_kg,bmi,goal,created_at,customer_status").order("created_at",{ascending:false}),
   supabase.from("consultation_enquiries").select("id,full_name,phone_number,appointment_date,appointment_time,consultation_type,consultation_stage")
  ]);
  if(error){body.innerHTML='<tr><td colspan="10">Unable to load customer profiles.</td></tr>';message(error.message,true);return;}
  if(consultationError)message(consultationError.message,true);
  const byPhone=new Map();(consultations||[]).forEach(x=>{const key=String(x.phone_number||"").replace(/\D/g,"");if(!byPhone.has(key))byPhone.set(key,[]);byPhone.get(key).push(x);});
  const q=document.getElementById("search").value.trim().toLowerCase();
- const rows=(data||[]).filter(c=>(c.full_name+" "+c.phone_number).toLowerCase().includes(q));
+ const rows=(data||[]).filter(c=>(c.customer_status||"Active")!=="Closed"&&(c.full_name+" "+c.phone_number).toLowerCase().includes(q));
  document.getElementById("count").textContent=rows.length+" customer"+(rows.length===1?"":"s");
  body.innerHTML=rows.length?rows.map(c=>{
   const key=String(c.phone_number||"").replace(/\D/g,""),items=(byPhone.get(key)||[]).filter(x=>(x.consultation_stage||"Open")!=="Closed");
@@ -144,13 +144,36 @@ function contactMessage(text,isError=false){contactStatus.textContent=text;conta
 async function loadContactSettings(){const {data,error}=await supabase.from("contact_settings").select("*").eq("id",true).maybeSingle();if(error){contactMessage("Could not load contact settings: "+error.message,true);return;}const fields={businessEmail:"business_email",contactPhone:"contact_phone",whatsappNumber:"whatsapp_number",businessAddress:"business_address",workingHours:"working_hours",instagramUrl:"instagram_url",facebookUrl:"facebook_url",youtubeUrl:"youtube_url"};for(const [id,key] of Object.entries(fields))document.getElementById(id).value=data?.[key]||"";}
 document.getElementById("contactForm").addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("saveContact");btn.disabled=true;try{const {data:{session}}=await supabase.auth.getSession();if(!session||session.user.app_metadata?.role!=="admin")throw new Error("Admin access required.");const value=id=>document.getElementById(id).value.trim();const payload={id:true,business_email:value("businessEmail")||null,contact_phone:value("contactPhone")||null,whatsapp_number:value("whatsappNumber")||null,business_address:value("businessAddress")||null,working_hours:value("workingHours")||null,instagram_url:value("instagramUrl")||null,facebook_url:value("facebookUrl")||null,youtube_url:value("youtubeUrl")||null,updated_at:new Date().toISOString()};for(const key of ["instagram_url","facebook_url","youtube_url"])if(payload[key]&&!/^https:\/\//i.test(payload[key]))throw new Error("Social media links must start with https://");const {error}=await supabase.from("contact_settings").upsert(payload,{onConflict:"id"});if(error)throw error;contactMessage("Contact settings saved. The public website will now show the latest details.");}catch(err){contactMessage(err.message||"Could not save contact settings.",true);}finally{btn.disabled=false;}});
 
+async function syncCustomerArchive(phone){
+ const norm=String(phone||"").replace(/\D/g,"");if(!norm)return;
+ const [{data:profiles,error:pe},{data:bookings,error:be}]=await Promise.all([supabase.from("customer_profiles").select("id,phone_number"),supabase.from("consultation_enquiries").select("consultation_stage,status,phone_number")]);
+ if(pe)throw pe;if(be)throw be;
+ const related=(bookings||[]).filter(x=>String(x.phone_number||"").replace(/\D/g,"")===norm);
+ const hasActive=related.some(x=>(x.consultation_stage||"Open")!=="Closed"&&x.status!=="Cancelled");
+ const hasCompleted=related.some(x=>(x.consultation_stage||"Open")==="Closed"&&x.status!=="Cancelled");
+ const nextStatus=!hasActive&&hasCompleted?"Closed":"Active";
+ for(const p of (profiles||[]).filter(x=>String(x.phone_number||"").replace(/\D/g,"")===norm)){const {error}=await supabase.from("customer_profiles").update({customer_status:nextStatus,updated_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;}
+}
+async function loadClosedCustomers(){
+ const target=document.getElementById("closedEnquiriesBody");if(!target)return;
+ target.innerHTML='<tr><td colspan="9">Loading closed customers…</td></tr>';
+ const [{data:profiles,error:pe},{data:bookings,error:be}]=await Promise.all([supabase.from("customer_profiles").select("id,full_name,phone_number,age,gender,height_cm,weight_kg,bmi,goal,created_at,customer_status").eq("customer_status","Closed").order("updated_at",{ascending:false}),supabase.from("consultation_enquiries").select("*").eq("consultation_stage","Closed").neq("status","Cancelled").order("appointment_date",{ascending:false})]);
+ if(pe||be){message((pe||be).message,true);target.innerHTML='<tr><td colspan="9">Could not load closed customers.</td></tr>';return;}
+ const completed=bookings||[],rows=(profiles||[]).filter(p=>completed.some(b=>String(b.phone_number||"").replace(/\D/g,"")===String(p.phone_number||"").replace(/\D/g,"")));
+ document.getElementById("closedEnquiryCount").textContent=rows.length+" closed customer"+(rows.length===1?"":"s");
+ target.innerHTML=rows.length?rows.map(p=>{
+  const norm=String(p.phone_number||"").replace(/\D/g,""),history=completed.filter(b=>String(b.phone_number||"").replace(/\D/g,"")===norm);
+  const historyHtml=history.map(b=>'<details style="margin:4px 0"><summary style="cursor:pointer;color:#315c45;font-weight:bold">'+esc(b.appointment_date||"")+" · "+esc(b.appointment_time||"")+" · "+esc(b.consultation_type)+'</summary><div style="padding:8px 0"><p><strong>Suggestions:</strong> '+esc(b.suggestions||"—")+'</p><p><strong>Notes / Follow-up:</strong> '+esc(b.consultant_notes||"—")+'</p><p><strong>Package:</strong> '+esc(b.package_offered||"—")+'</p></div></details>').join("");
+  return '<tr><td><strong>'+esc(p.full_name)+'</strong><br><small>Closed customer</small></td><td>'+esc(p.phone_number)+'</td><td>'+esc(p.age)+'</td><td>'+esc(p.gender)+'</td><td>'+esc(p.height_cm)+' cm</td><td>'+esc(p.weight_kg)+' kg</td><td>'+esc(p.bmi)+'</td><td>'+esc(p.goal)+'</td><td>'+historyHtml+'</td></tr>';
+ }).join(""):'<tr><td colspan="9">No closed customers yet.</td></tr>';
+}
 async function loadConsultationEnquiries(archived=false){
  const target=document.getElementById(archived?"closedEnquiriesBody":"enquiriesBody");if(!target)return;
  target.innerHTML='<tr><td colspan="7">Loading…</td></tr>';
  const {data,error}=await supabase.from("consultation_enquiries").select("*").order("appointment_date",{ascending:false}).order("appointment_time",{ascending:false});
  if(error){target.innerHTML='<tr><td colspan="7">Could not load consultation bookings.</td></tr>';message(error.message,true);return;}
  const allRows=data||[];const rows=allRows.filter(item=>((item.consultation_stage||"Open")==="Closed")===archived);
- if(archived){document.getElementById("closedEnquiryCount").textContent=rows.length+" closed consultation record"+(rows.length===1?"":"s");target.innerHTML=rows.length?rows.map(item=>'<tr><td><strong>'+esc(item.full_name)+'</strong></td><td>'+esc(item.phone_number)+'</td><td>'+esc(item.consultation_type)+'</td><td>'+esc(item.appointment_date||"—")+' '+esc(item.appointment_time||"—")+'</td><td>'+esc(item.suggestions||"—")+'</td><td>'+esc(item.consultant_notes||"—")+'</td><td>'+esc(item.package_offered||"—")+'</td></tr>').join(""):'<tr><td colspan="7">No closed consultations yet.</td></tr>';return;}
+ if(archived){await loadClosedCustomers();return;}
  document.getElementById("enquiryCount").textContent=rows.length+" active consultation booking"+(rows.length===1?"":"s");
  target.innerHTML=rows.length?rows.map(item=>{
   const phone=String(item.phone_number||"").replace(/\D/g,"");
@@ -190,7 +213,7 @@ async function loadConsultationEnquiries(archived=false){
  }));
 }
 document.getElementById("refreshEnquiries").addEventListener("click",loadConsultationEnquiries);
-document.getElementById("refreshClosedEnquiries").addEventListener("click",()=>loadConsultationEnquiries(true));
+document.getElementById("refreshClosedEnquiries").addEventListener("click",loadClosedCustomers);
 const slotGrid=document.getElementById("adminSlotGrid"),slotStatus=document.getElementById("slotAdminStatus"),slotDateInput=document.getElementById("adminSlotDate");
 function slotMessage(text,isError=false){slotStatus.textContent=text;slotStatus.style.display="block";slotStatus.style.background=isError?"#fde8e7":"#edf2e7";slotStatus.style.color=isError?"#8c2923":"#244c32";}
 function slotTimeLabel(t){const [h,m]=t.split(":").map(Number);const d=new Date();d.setHours(h,m,0,0);return d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}
@@ -222,7 +245,7 @@ async function loadAdminSlots(){
 }
 slotDateInput.addEventListener("change",loadAdminSlots);document.getElementById("refreshSlots").addEventListener("click",loadAdminSlots);
 
-async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");adminLayout.classList.remove("hidden");activatePanel("dashboard");status.classList.remove("show");await loadCustomers();await loadAbout();await loadContactSettings();await loadConsultationEnquiries();await loadConsultationEnquiries(true);const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
+async function checkAdmin(){const {data:{session}}=await supabase.auth.getSession();if(!session){loginCard.classList.remove("hidden");dashboard.classList.add("hidden");return;}if(session.user.app_metadata?.role!=="admin"){await supabase.auth.signOut();loginCard.classList.remove("hidden");dashboard.classList.add("hidden");message("This account does not have the admin role. Ask the project owner to grant admin access.",true);return;}loginCard.classList.add("hidden");adminLayout.classList.remove("hidden");activatePanel("dashboard");status.classList.remove("show");await loadCustomers();await loadAbout();await loadContactSettings();await loadConsultationEnquiries();await loadClosedCustomers();const today=new Date();const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);slotDateInput.value=localToday;await loadAdminSlots();}
 document.getElementById("loginForm").addEventListener("submit",async e=>{e.preventDefault();const btn=e.currentTarget.querySelector("button");btn.disabled=true;try{const {error}=await supabase.auth.signInWithPassword({email:document.getElementById("email").value.trim(),password:document.getElementById("password").value});if(error)throw error;await checkAdmin();}catch(err){message(err.message||"Admin sign in failed.",true);}finally{btn.disabled=false;}});
 document.getElementById("refresh").addEventListener("click",loadCustomers);document.getElementById("search").addEventListener("input",loadCustomers);document.getElementById("logout").addEventListener("click",async()=>{await supabase.auth.signOut();loginCard.classList.remove("hidden");adminLayout.classList.add("hidden");});checkAdmin();
 </script></body></html>
