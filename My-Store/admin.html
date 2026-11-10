@@ -126,14 +126,21 @@ async function loadConsultationEnquiries(){
   const phone=String(item.phone_number||"").replace(/\D/g,"");
   const waText=encodeURIComponent("Hello "+item.full_name+", your "+item.consultation_type+" consultation at "+(item.consultation_type==="Offline"?"Kakinada, Andhra Pradesh":"Online")+" is scheduled for "+(item.appointment_date||"")+" at "+(item.appointment_time||"")+". Booking status: "+(item.status||"New")+".");
   const stage=item.consultation_stage||"Open";
-  return `<tr><td><strong>'+esc(item.full_name)+'</strong><br><span class="muted">'+esc(item.email||"")+'</span></td><td>'+esc(item.phone_number)+'</td><td><span class="pill">'+esc(item.consultation_type)+'</span>'+(item.consultation_type==="Offline"?'<br><small>Kakinada</small>':'')+'</td><td>'+esc(item.appointment_date||"—")+'<br><strong>'+esc(item.appointment_time||"—")+'</strong></td><td><span class="pill">'+esc(stage)+'</span><br><small>Booking: '+esc(item.status)+'</small></td><td>'+(phone?'<a target="_blank" rel="noopener noreferrer" href="https://wa.me/'+phone+'?text='+waText+'">WhatsApp Confirmation</a>':'—')+'</td><td><details id="consultation-detail-'+item.id+'"><summary style="cursor:pointer;color:#315c45;font-weight:bold">Consultation Details</summary><div style="min-width:280px;padding:12px 0">
-  <label>Consultation Process</label><select data-stage="'+item.id+'" style="width:100%;padding:9px;margin:5px 0 10px"><option '+(stage==="Open"?"selected":"")+' value="Open">Open</option><option '+(stage==="In Progress"?"selected":"")+' value="In Progress">In Progress</option><option '+(stage==="Closed"?"selected":"")+' value="Closed">Closed</option></select>
-  <label>Booking Status</label><select data-booking-status="'+item.id+'" style="width:100%;padding:9px;margin:5px 0 10px"><option '+(item.status==="New"?"selected":"")+' value="New">New</option><option '+(item.status==="Contacted"?"selected":"")+' value="Contacted">Contacted</option><option '+(item.status==="Confirmed"?"selected":"")+' value="Confirmed">Confirmed</option><option '+(item.status==="Cancelled"?"selected":"")+' value="Cancelled">Cancelled</option></select>
-  <label>Consultant Suggestions / Advice</label><textarea data-suggestions="'+item.id+'" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">'+esc(item.suggestions||"")+'</textarea>
-  <label>Consultant Notes / Follow-up</label><textarea data-notes="'+item.id+'" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">'+esc(item.consultant_notes||"")+'</textarea>
-  <label>Package Offered</label><input data-package="'+item.id+'" value="'+esc(item.package_offered||"")+'" placeholder="e.g. 30-day Weight Loss Package" style="width:100%;padding:9px;margin:5px 0 10px">
-  <button type="button" data-save-consultation="'+item.id+'">Save Consultation Details</button>
-  </div></details></td></tr>`;
+   return `<tr>
+    <td><strong>${esc(item.full_name)}</strong><br><span class="muted">${esc(item.email||"")}</span></td>
+    <td>${esc(item.phone_number)}</td>
+    <td><span class="pill">${esc(item.consultation_type)}</span>${item.consultation_type==="Offline"?'<br><small>Kakinada</small>':""}</td>
+    <td>${esc(item.appointment_date||"—")}<br><strong>${esc(item.appointment_time||"—")}</strong></td>
+    <td><span class="pill">${esc(stage)}</span><br><small>Booking: ${esc(item.status||"New")}</small></td>
+    <td>${phone?`<a target="_blank" rel="noopener noreferrer" href="https://wa.me/${phone}?text=${waText}">WhatsApp Confirmation</a>`:"—"}</td>
+    <td><details id="consultation-detail-${item.id}"><summary style="cursor:pointer;color:#315c45;font-weight:bold">Consultation Details</summary><div style="min-width:280px;padding:12px 0">
+     <label>Consultation Process</label><select data-stage="${item.id}" style="width:100%;padding:9px;margin:5px 0 10px"><option ${stage==="Open"?"selected":""} value="Open">Open</option><option ${stage==="In Progress"?"selected":""} value="In Progress">In Progress</option><option ${stage==="Closed"?"selected":""} value="Closed">Closed</option></select>
+     <label>Booking Status</label><select data-booking-status="${item.id}" style="width:100%;padding:9px;margin:5px 0 10px"><option ${item.status==="New"?"selected":""} value="New">New</option><option ${item.status==="Contacted"?"selected":""} value="Contacted">Contacted</option><option ${item.status==="Confirmed"?"selected":""} value="Confirmed">Confirmed</option><option ${item.status==="Cancelled"?"selected":""} value="Cancelled">Cancelled</option></select>
+     <label>Consultant Suggestions / Advice</label><textarea data-suggestions="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.suggestions||"")}</textarea>
+     <label>Consultant Notes / Follow-up</label><textarea data-notes="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.consultant_notes||"")}</textarea>
+     <label>Package Offered</label><input data-package="${item.id}" value="${esc(item.package_offered||"")}" placeholder="e.g. 30-day Weight Loss Package" style="width:100%;padding:9px;margin:5px 0 10px">
+     <button type="button" data-save-consultation="${item.id}">Save Consultation Details</button>
+    </div></details></td></tr>`;
  }).join(""):'<tr><td colspan="7">No consultation bookings yet.</td></tr>';
  target.querySelectorAll("[data-save-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
   const id=btn.dataset.saveConsultation;btn.disabled=true;
