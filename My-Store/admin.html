@@ -84,6 +84,11 @@ document.querySelectorAll(".admin-sidebar .nav-item").forEach(button=>button.add
 
 function message(text,error=false){status.textContent=text;status.classList.add("show");status.style.background=error?"#fde8e7":"#fff2d8";status.style.color=error?"#8c2923":"#634a11";}
 function esc(value){return String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function consultationDateTime(date,time){
+ const d=date?new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"Date pending";
+ const t=time?new Date("2000-01-01T"+String(time).slice(0,5)+":00").toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}):"Time pending";
+ return d+" · "+t;
+}
 async function loadCustomers(){
  body.innerHTML='<tr><td colspan="10">Loading…</td></tr>';
  const [{data,error},{data:consultations, error:consultationError}]=await Promise.all([
@@ -98,12 +103,14 @@ async function loadCustomers(){
  document.getElementById("count").textContent=rows.length+" customer"+(rows.length===1?"":"s");
  body.innerHTML=rows.length?rows.map(c=>{
   const key=String(c.phone_number||"").replace(/\D/g,""),items=byPhone.get(key)||[];
-  const consultationCell=items.length?items.map(x=>'<button type="button" data-open-consultation="'+x.id+'" style="padding:6px 9px;margin:2px;font-size:11px">Consultation · '+esc(x.appointment_date||"Pending")+' '+esc(x.appointment_time||"")+'</button>').join(""):'<span class="pill">Profile saved</span>';
+  const consultationCell=items.length?items.map(x=>'<button type="button" data-open-consultation="'+x.id+'" style="padding:7px 10px;margin:3px;font-size:11px;line-height:1.3">View · '+esc(consultationDateTime(x.appointment_date,x.appointment_time))+'</button>').join(""):'<span class="pill">Profile saved</span>';
   return '<tr><td>'+esc(c.full_name)+'</td><td>'+esc(c.phone_number)+'</td><td>'+esc(c.age)+'</td><td>'+esc(String(c.gender||"").replaceAll("_"," "))+'</td><td>'+esc(c.height_cm)+' cm</td><td>'+esc(c.weight_kg)+' kg</td><td><strong>'+Number(c.bmi).toFixed(1)+'</strong></td><td>'+esc(String(c.goal||"").replaceAll("_"," "))+'</td><td>'+esc(new Date(c.created_at).toLocaleString())+'</td><td>'+consultationCell+'</td></tr>';
  }).join(""):'<tr><td colspan="10">No customer profiles found.</td></tr>';
- body.querySelectorAll("[data-open-consultation]").forEach(btn=>btn.addEventListener("click",()=>{
-  document.getElementById("consultationManager").scrollIntoView({behavior:"smooth"});
-  const details=document.getElementById("consultation-detail-"+btn.dataset.openConsultation);if(details)details.open=true;
+ body.querySelectorAll("[data-open-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
+  activatePanel("consultationManager");
+  await loadConsultationEnquiries();
+  const details=document.getElementById("consultation-detail-"+btn.dataset.openConsultation);
+  if(details){details.open=true;details.scrollIntoView({behavior:"smooth",block:"center"});}
  }));
 }
 const aboutStatus=document.getElementById("aboutStatus");
@@ -139,9 +146,18 @@ async function loadConsultationEnquiries(){
      <label>Consultant Suggestions / Advice</label><textarea data-suggestions="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.suggestions||"")}</textarea>
      <label>Consultant Notes / Follow-up</label><textarea data-notes="${item.id}" rows="3" style="width:100%;padding:9px;margin:5px 0 10px">${esc(item.consultant_notes||"")}</textarea>
      <label>Package Offered</label><input data-package="${item.id}" value="${esc(item.package_offered||"")}" placeholder="e.g. 30-day Weight Loss Package" style="width:100%;padding:9px;margin:5px 0 10px">
-     <button type="button" data-save-consultation="${item.id}">Save Consultation Details</button>
+     <button type="button" data-save-consultation="${item.id}">Save Consultation Details</button><button type="button" data-cancel-consultation="${item.id}" style="margin-left:8px;background:#8c2923">Cancel / Remove Booking</button>
     </div></details></td></tr>`;
  }).join(""):'<tr><td colspan="7">No consultation bookings yet.</td></tr>';
+ target.querySelectorAll("[data-cancel-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
+  const id=btn.dataset.cancelConsultation;
+  if(!window.confirm("Cancel this consultation booking? It will be marked Cancelled and kept in the admin record, and the slot can be booked again."))return;
+  btn.disabled=true;
+  const {error}=await supabase.from("consultation_enquiries").update({status:"Cancelled",consultation_stage:"Closed",updated_at:new Date().toISOString()}).eq("id",id);
+  if(error){message(error.message,true);btn.disabled=false;return;}
+  message("Consultation booking cancelled. The record is retained for history.");
+  await loadConsultationEnquiries();await loadCustomers();
+ }));
  target.querySelectorAll("[data-save-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
   const id=btn.dataset.saveConsultation;btn.disabled=true;
   const val=selector=>target.querySelector(selector.slice(0,-1)+'="'+id+'"]').value;
