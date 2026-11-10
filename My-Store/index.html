@@ -1461,7 +1461,7 @@
     document.querySelectorAll("[data-book-consultation]").forEach(button=>button.addEventListener("click",()=>{
       let profile=null;try{profile=JSON.parse(localStorage.getItem("sirisnutrifit_saved_profile")||"null");}catch(_){}
       if(!profile||!profile.full_name||!profile.phone_number){bookingPanel.style.display="block";showBookingStatus("Please complete your customer details on the Welcome page before booking a consultation.",true);bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});return;}
-      activeConsultationProfile=profile;activeConsultationType=button.dataset.bookConsultation;selectedConsultationTime=null;
+      activeConsultationProfile=profile;activeConsultationType=button.dataset.bookConsultation;selectedConsultationTime=null;document.getElementById("cancelConsultationBooking").textContent="Cancel";
       document.getElementById("bookingHeading").textContent="Book "+activeConsultationType+" Consultation";
       document.getElementById("bookingProfileSummary").textContent="Customer details: "+profile.full_name+" · "+profile.phone_number+" · Age: "+(profile.age||"—")+" · Gender: "+(profile.gender||"—")+" · Height: "+(profile.height_cm||"—")+" cm · Weight: "+(profile.weight_kg||"—")+" kg · BMI: "+(profile.bmi||"—")+" · Goal: "+(profile.goal||"—");
       bookingStatus.classList.remove("visible");bookingPanel.style.display="block";
@@ -1477,14 +1477,14 @@
     });
     document.getElementById("previousSlotDay").addEventListener("click",()=>{if(selectedConsultationDate>localDate){let d=addDays(selectedConsultationDate,-1);while(d>localDate&&!isWorkingDay(d))d=addDays(d,-1);if(isWorkingDay(d))loadConsultationSlots(d,true);}});
     document.getElementById("nextSlotDay").addEventListener("click",()=>loadConsultationSlots(nextWorkingDate(selectedConsultationDate),true));
-    document.getElementById("cancelConsultationBooking").addEventListener("click",()=>{bookingPanel.style.display="none";slotArea.style.display="none";offlineNotice.style.display="none";bookingStatus.classList.remove("visible");selectedConsultationTime=null;});
+    document.getElementById("cancelConsultationBooking").addEventListener("click",()=>{bookingPanel.style.display="none";slotArea.style.display="none";offlineNotice.style.display="none";bookingStatus.classList.remove("visible");selectedConsultationTime=null;document.getElementById("cancelConsultationBooking").textContent="Cancel";document.getElementById("bookingMessage").value="";});
     async function createConsultationBooking(confirmDuplicate=false){
       const btn=document.getElementById("submitConsultationBooking");
       const bookingArgs={p_full_name:activeConsultationProfile.full_name,p_phone_number:activeConsultationProfile.phone_number,p_email:activeConsultationProfile.email||null,p_consultation_type:activeConsultationType,p_date:selectedConsultationDate,p_time:selectedConsultationTime,p_message:document.getElementById("bookingMessage").value.trim()||null,p_confirm_duplicate:confirmDuplicate};
       const result=await supabase.rpc("book_consultation_slot",bookingArgs);
       if(result.error)throw result.error;
       showBookingStatus("Your "+activeConsultationType.toLowerCase()+" consultation is booked for "+formatSlotDate(selectedConsultationDate)+" at "+timeLabel(selectedConsultationTime)+". Your booking has been sent to our team.",false);
-      slotArea.style.display="none";offlineNotice.style.display="none";
+      slotArea.style.display="none";offlineNotice.style.display="none";document.getElementById("cancelConsultationBooking").textContent="Close";
       const prompt=document.getElementById("duplicateBookingPrompt");if(prompt)prompt.remove();
     }
     document.getElementById("submitConsultationBooking").addEventListener("click",async()=>{
