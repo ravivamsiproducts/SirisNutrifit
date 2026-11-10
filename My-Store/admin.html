@@ -221,6 +221,7 @@ async function loadConsultationEnquiries(archived=false){
   message("Consultation booking cancelled. The record is retained for history.");
   await loadConsultationEnquiries();await loadCustomers();await loadConsultationEnquiries(true);
  }));
+ target.querySelectorAll("[data-stage]").forEach(sel=>sel.addEventListener("change",()=>{if(sel.value==="Follow-up"){const item=allRows.find(x=>x.id===sel.dataset.stage);if(item)openFollowupScheduler(item);}}));
  target.querySelectorAll("[data-save-consultation]").forEach(btn=>btn.addEventListener("click",async()=>{
   const id=btn.dataset.saveConsultation;btn.disabled=true;
   const val=selector=>target.querySelector(selector.slice(0,-1)+'="'+id+'"]').value;
@@ -235,6 +236,52 @@ document.getElementById("refreshEnquiries").addEventListener("click",loadConsult
 document.getElementById("refreshClosedEnquiries").addEventListener("click",loadClosedCustomers);document.getElementById("closedCustomerSearch").addEventListener("input",loadClosedCustomers);
 const slotGrid=document.getElementById("adminSlotGrid"),slotStatus=document.getElementById("slotAdminStatus"),slotDateInput=document.getElementById("adminSlotDate");
 function slotMessage(text,isError=false){slotStatus.textContent=text;slotStatus.style.display="block";slotStatus.style.background=isError?"#fde8e7":"#edf2e7";slotStatus.style.color=isError?"#8c2923":"#244c32";}
+function addAdminDays(base,days){const d=new Date(base+"T12:00:00");d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
+function nextAdminWorkingDay(date){let d=date;while(new Date(d+"T12:00:00").getDay()===0)d=addAdminDays(d,1);return d;}
+function openFollowupScheduler(item){
+ const overlay=document.createElement("div");overlay.id="followupSchedulerModal";
+ overlay.style.cssText="position:fixed;inset:0;z-index:3000;background:rgba(13,28,20,.65);display:flex;align-items:center;justify-content:center;padding:16px";
+ overlay.innerHTML='<div role="dialog" aria-modal="true" aria-labelledby="followupTitle" style="background:#fff;border-radius:22px;width:min(620px,100%);max-height:90vh;overflow:auto;padding:24px;box-shadow:0 24px 80px #0004"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 id="followupTitle" style="margin:0;color:#244c32">Schedule Follow-up Consultation</h2><button type="button" id="closeFollowupModal" aria-label="Close" style="border:0;background:#edf2e7;color:#244c32;border-radius:50%;width:38px;height:38px;font-size:22px">×</button></div><p style="color:#68756c;margin:12px 0 18px">Customer: <strong>'+esc(item.full_name)+'</strong> · '+esc(item.phone_number)+'<br>Choose when the customer should return for the next consultation.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"><button type="button" data-followup-days="2">After 2 days</button><button type="button" data-followup-days="3">After 3 days</button><button type="button" data-followup-days="7">After 1 week</button><button type="button" data-followup-days="30">After 1 month</button></div><label for="followupDate" style="display:block;font-weight:700;margin-bottom:7px">Follow-up Date</label><input id="followupDate" type="date" min="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:12px;border:1px solid #ccd8ca;border-radius:10px;font:inherit"><p style="font-weight:700;margin:18px 0 8px">Available Time Slots</p><div id="followupSlotGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:9px"><p style="color:#68756c">Select a follow-up date to see available slots.</p></div><p id="followupModalStatus" role="status" style="display:none;padding:12px;border-radius:10px;margin:14px 0 0"></p><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px"><button type="button" id="cancelFollowupModal" style="background:#edf2e7;color:#244c32">Cancel</button><button type="button" id="confirmFollowupBooking" disabled>Book Follow-up Slot</button></div></div>';
+ document.body.appendChild(overlay);
+ const dateInput=overlay.querySelector("#followupDate"),grid=overlay.querySelector("#followupSlotGrid"),status=overlay.querySelector("#followupModalStatus"),confirm=overlay.querySelector("#confirmFollowupBooking");
+ let chosenTime=null,loading=false;
+ const close=()=>overlay.remove();
+ overlay.querySelector("#closeFollowupModal").addEventListener("click",close);
+ overlay.querySelector("#cancelFollowupModal").addEventListener("click",close);
+ overlay.addEventListener("click",e=>{if(e.target===overlay)close();});
+ function note(text,isError=false){status.textContent=text;status.style.display="block";status.style.background=isError?"#fde8e7":"#edf2e7";status.style.color=isError?"#8c2923":"#244c32";}
+ async function showSlots(date){
+  chosenTime=null;confirm.disabled=true;grid.innerHTML="<p>Loading available slots…</p>";
+  if(!date)return;
+  if(new Date(date+"T12:00:00").getDay()===0){grid.innerHTML="<p>Sunday is not available. Please choose Monday to Saturday.</p>";return;}
+  const {data,error}=await supabase.rpc("get_available_consultation_slots",{p_date:date});
+  if(error){grid.innerHTML="";note(error.message,true);return;}
+  const {data:settings,error:settingsError}=await supabase.from("consultation_slot_settings").select("appointment_time,is_active").eq("appointment_date",date);
+  if(settingsError){grid.innerHTML="";note(settingsError.message,true);return;}
+  const settingsMap=new Map((settings||[]).map(x=>[x.appointment_time,x.is_active]));
+  const slots=(data||[]).filter(s=>s.is_available&&(!settingsMap.has(s.slot_time)||settingsMap.get(s.slot_time)));
+  grid.innerHTML="";
+  if(!slots.length){grid.innerHTML="<p>No available slots for this date. Please select another date.</p>";return;}
+  slots.forEach(s=>{
+   const b=document.createElement("button");b.type="button";b.textContent=slotTimeLabel(s.slot_time);b.style.cssText="background:#edf2e7;color:#244c32;border:1px solid #d7e2d2;border-radius:10px;padding:11px;font-weight:700";
+   b.addEventListener("click",()=>{chosenTime=s.slot_time;grid.querySelectorAll("button").forEach(x=>{x.style.background="#edf2e7";x.style.color="#244c32";});b.style.background="#315c45";b.style.color="#fff";confirm.disabled=false;});
+   grid.appendChild(b);
+  });
+ }
+ dateInput.addEventListener("change",()=>showSlots(dateInput.value));
+ overlay.querySelectorAll("[data-followup-days]").forEach(b=>b.addEventListener("click",()=>{dateInput.value=nextAdminWorkingDay(addAdminDays(new Date().toISOString().slice(0,10),Number(b.dataset.followupDays)));showSlots(dateInput.value);}));
+ confirm.addEventListener("click",async()=>{
+  if(!dateInput.value||!chosenTime||loading)return;
+  loading=true;confirm.disabled=true;
+  const payload={full_name:item.full_name,phone_number:item.phone_number,email:item.email||null,consultation_type:item.consultation_type,appointment_date:dateInput.value,appointment_time:chosenTime,preferred_time:dateInput.value+" at "+chosenTime,message:"Follow-up appointment for previous consultation #"+item.id,status:"Confirmed",consultation_stage:"Follow-up"};
+  const {error}=await supabase.from("consultation_enquiries").insert(payload);
+  if(error){note(error.message,true);loading=false;confirm.disabled=false;return;}
+  note("Follow-up appointment booked successfully. It is now listed in Consultation Management.");
+  await loadConsultationEnquiries();await loadCustomers();
+  confirm.textContent="Booked ✓";confirm.disabled=true;
+  setTimeout(close,1200);
+ });
+}
 function slotTimeLabel(t){const [h,m]=t.split(":").map(Number);const d=new Date();d.setHours(h,m,0,0);return d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}
 async function loadAdminSlots(){
  const date=slotDateInput.value;if(!date)return;
