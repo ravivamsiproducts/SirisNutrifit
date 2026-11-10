@@ -63,7 +63,7 @@
 <p class="muted" style="margin-top:12px">Select Consultation Details to update progress, notes, suggestions and package offers. WhatsApp opens a pre-filled message for you to review and send.</p>
 </section>
 <section class="card admin-panel hidden" id="closedConsultations">
-<div class="toolbar"><div><h2>Closed Customers</h2><p class="muted" id="closedEnquiryCount">Completed customers and their full service history.</p></div><button type="button" id="refreshClosedEnquiries">Refresh</button></div>
+<div class="toolbar"><div><h2>Closed Customers</h2><p class="muted" id="closedEnquiryCount">Completed customers and their full service history.</p></div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><input id="closedCustomerSearch" type="search" placeholder="Search customer name or phone" aria-label="Search closed customers" style="max-width:320px;margin:0"><button type="button" id="refreshClosedEnquiries">Refresh</button></div></div>
 <div class="table-wrap"><table style="min-width:1050px"><thead><tr><th>Customer Profile</th><th>Phone</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th><th>BMI</th><th>Goal</th><th>Completed Services / History</th><th>Action</th></tr></thead><tbody id="closedEnquiriesBody"><tr><td colspan="9">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="card admin-panel hidden" id="slotManager" style="margin-top:20px">
@@ -159,7 +159,7 @@ async function loadClosedCustomers(){
  target.innerHTML='<tr><td colspan="10">Loading closed customers…</td></tr>';
  const [{data:profiles,error:pe},{data:bookings,error:be}]=await Promise.all([supabase.from("customer_profiles").select("id,full_name,phone_number,age,gender,height_cm,weight_kg,bmi,goal,created_at,customer_status").eq("customer_status","Closed").order("updated_at",{ascending:false}),supabase.from("consultation_enquiries").select("*").eq("consultation_stage","Closed").neq("status","Cancelled").order("appointment_date",{ascending:false})]);
  if(pe||be){message((pe||be).message,true);target.innerHTML='<tr><td colspan="10">Could not load closed customers.</td></tr>';return;}
- const completed=bookings||[],rows=(profiles||[]).filter(p=>completed.some(b=>String(b.phone_number||"").replace(/\D/g,"")===String(p.phone_number||"").replace(/\D/g,"")));
+ const completed=bookings||[],q=(document.getElementById("closedCustomerSearch")?.value||"").trim().toLowerCase(),rows=(profiles||[]).filter(p=>completed.some(b=>String(b.phone_number||"").replace(/\D/g,"")===String(p.phone_number||"").replace(/\D/g,""))&&(String(p.full_name||"")+" "+String(p.phone_number||"")).toLowerCase().includes(q));
  document.getElementById("closedEnquiryCount").textContent=rows.length+" closed customer"+(rows.length===1?"":"s");
  target.innerHTML=rows.length?rows.map(p=>{
   const norm=String(p.phone_number||"").replace(/\D/g,""),history=completed.filter(b=>String(b.phone_number||"").replace(/\D/g,"")===norm);
@@ -232,7 +232,7 @@ async function loadConsultationEnquiries(archived=false){
  }));
 }
 document.getElementById("refreshEnquiries").addEventListener("click",loadConsultationEnquiries);
-document.getElementById("refreshClosedEnquiries").addEventListener("click",loadClosedCustomers);
+document.getElementById("refreshClosedEnquiries").addEventListener("click",loadClosedCustomers);document.getElementById("closedCustomerSearch").addEventListener("input",loadClosedCustomers);
 const slotGrid=document.getElementById("adminSlotGrid"),slotStatus=document.getElementById("slotAdminStatus"),slotDateInput=document.getElementById("adminSlotDate");
 function slotMessage(text,isError=false){slotStatus.textContent=text;slotStatus.style.display="block";slotStatus.style.background=isError?"#fde8e7":"#edf2e7";slotStatus.style.color=isError?"#8c2923":"#244c32";}
 function slotTimeLabel(t){const [h,m]=t.split(":").map(Number);const d=new Date();d.setHours(h,m,0,0);return d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});}
