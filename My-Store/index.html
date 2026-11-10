@@ -992,39 +992,24 @@
     
 
     <section class="section section-white" id="consultation">
-      <div class="container">
-        <div class="section-heading">
-          <span class="eyebrow">Consultation options</span>
-          <h2>Support that fits your schedule.</h2>
-          <p>
-            Choose an online or in-person consultation.
-            Booking and availability features will be connected in a later step.
-          </p>
-        </div>
-
-        <div class="consult-grid">
-          <article class="consult-card">
-            <div class="big-icon">💻</div>
-            <h3>Online Consultation</h3>
-            <p>
-              Connect remotely to discuss your goals, routine and
-              nutrition questions with your consultant.
-            </p>
-            <a class="btn" href="#contact">Ask about online sessions →</a>
-          </article>
-
-          <article class="consult-card light">
-            <div class="big-icon">📍</div>
-            <h3>Offline Consultation</h3>
-            <p>
-              Explore in-person consultation options. The actual
-              location and appointment availability will be confirmed.
-            </p>
-            <a class="btn" href="#contact">Ask about in-person visits →</a>
-          </article>
-        </div>
-      </div>
-    <div class="onboarding-card" style="margin:34px auto 0;max-width:760px"><div class="section-heading" style="margin-bottom:22px"><span class="eyebrow">Request a callback</span><h2>Book a Consultation</h2><p>Share your details and our team will contact you to discuss availability.</p></div><form id="consultationEnquiryForm" class="profile-grid"><div class="field"><label for="enquiryName">Full Name *</label><input id="enquiryName" required maxlength="100" autocomplete="name" placeholder="Your name"></div><div class="field"><label for="enquiryPhone">Contact Number *</label><input id="enquiryPhone" type="tel" required maxlength="25" autocomplete="tel" placeholder="+91 98765 43210"></div><div class="field"><label for="enquiryEmail">Email (optional)</label><input id="enquiryEmail" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"></div><div class="field"><label for="enquiryType">Consultation Type *</label><select id="enquiryType" required><option value="">Select type</option><option value="Online">Online Consultation</option><option value="Offline">Offline Consultation</option></select></div><div class="field full"><label for="enquiryTime">Preferred Day / Time</label><input id="enquiryTime" maxlength="180" placeholder="e.g. Weekdays after 5 PM"></div><div class="field full"><label for="enquiryMessage">Message (optional)</label><textarea id="enquiryMessage" rows="3" maxlength="1500" placeholder="Tell us briefly what support you are looking for" style="width:100%;padding:12px;border:1px solid #dce4d9;border-radius:12px;font:inherit"></textarea></div><button class="onboarding-submit field full" type="submit" id="submitConsultationEnquiry">Submit Consultation Request →</button></form><div id="consultationEnquiryStatus" class="auth-message" role="status" aria-live="polite"></div></div></section>
+<div class="container">
+<div class="section-heading"><span class="eyebrow">Consultation booking</span><h2>Choose your consultation</h2><p>Sign in or complete your customer details first. Your saved profile details will be used automatically for booking.</p></div>
+<div class="consult-grid">
+<article class="consult-card"><div class="big-icon">💻</div><h3>Online Consultation</h3><p>Book a remote consultation with your nutrition consultant.</p><button class="btn" type="button" data-book-consultation="Online">Book Online Consultation →</button></article>
+<article class="consult-card light"><div class="big-icon">📍</div><h3>Offline Consultation</h3><p>Request an in-person appointment. Location and availability will be confirmed by our team.</p><button class="btn" type="button" data-book-consultation="Offline">Book Offline Consultation →</button></article>
+</div>
+<div id="consultationBookingPanel" class="onboarding-card" style="display:none;margin:32px auto 0;max-width:760px">
+<div class="section-heading" style="margin-bottom:18px"><span class="eyebrow">Appointment request</span><h2 id="bookingHeading">Book Consultation</h2><p id="bookingProfileSummary"></p></div>
+<form id="consultationBookingForm" class="profile-grid">
+<input type="hidden" id="bookingConsultationType">
+<div class="field"><label for="bookingDate">Preferred Date *</label><input id="bookingDate" type="date" required></div>
+<div class="field"><label for="bookingTime">Preferred Time *</label><input id="bookingTime" type="time" required></div>
+<div class="field full"><label for="bookingMessage">Message (optional)</label><textarea id="bookingMessage" rows="3" maxlength="1500" placeholder="Any additional details for the consultant" style="width:100%;padding:12px;border:1px solid #dce4d9;border-radius:12px;font:inherit"></textarea></div>
+<button class="onboarding-submit field full" type="submit" id="submitConsultationBooking">Submit Booking Request →</button>
+<button class="btn btn-outline field full" type="button" id="cancelConsultationBooking">Cancel</button>
+</form><div id="consultationBookingStatus" class="auth-message" role="status" aria-live="polite"></div>
+</div>
+</div></section>
 
     <section class="section">
       <div class="container">
@@ -1416,7 +1401,34 @@
     }
     loadPublicContactSettings();
 
-const consultationEnquiryForm=document.getElementById("consultationEnquiryForm");if(consultationEnquiryForm){consultationEnquiryForm.addEventListener("submit",async event=>{event.preventDefault();if(!consultationEnquiryForm.reportValidity())return;const submit=document.getElementById("submitConsultationEnquiry"),notice=document.getElementById("consultationEnquiryStatus"),val=id=>document.getElementById(id).value.trim(),phone=val("enquiryPhone");if(!/^\+?[0-9\s()-]{7,25}$/.test(phone)){notice.textContent="Please enter a valid contact number.";notice.classList.add("visible");return;}submit.disabled=true;notice.classList.remove("visible");try{const {error}=await supabase.from("consultation_enquiries").insert({full_name:val("enquiryName"),phone_number:phone,email:val("enquiryEmail")||null,consultation_type:val("enquiryType"),preferred_time:val("enquiryTime")||null,message:val("enquiryMessage")||null});if(error)throw error;consultationEnquiryForm.reset();notice.textContent="Thank you! Your consultation request has been received. Our team will contact you soon.";notice.style.background="#eaf4e5";notice.style.color="#244c32";notice.classList.add("visible");}catch(error){notice.textContent=error.message||"We could not submit your request. Please try again.";notice.style.background="#fde8e7";notice.style.color="#8c2923";notice.classList.add("visible");}finally{submit.disabled=false;}});}
+
+    const bookingPanel=document.getElementById("consultationBookingPanel");
+    const bookingStatus=document.getElementById("consultationBookingStatus");
+    const bookingForm=document.getElementById("consultationBookingForm");
+    const todayLocal=new Date();const localDate=new Date(todayLocal.getTime()-todayLocal.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    document.getElementById("bookingDate").min=localDate;
+    document.querySelectorAll("[data-book-consultation]").forEach(button=>button.addEventListener("click",()=>{
+      let profile=null;try{profile=JSON.parse(localStorage.getItem("sirisnutrifit_saved_profile")||"null");}catch(_){}
+      if(!profile||!profile.full_name||!profile.phone_number){bookingPanel.style.display="block";bookingStatus.textContent="Please complete your customer details on the Welcome page before booking a consultation.";bookingStatus.style.background="#fff2d8";bookingStatus.style.color="#634a11";bookingStatus.classList.add("visible");bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});return;}
+      document.getElementById("bookingConsultationType").value=button.dataset.bookConsultation;
+      document.getElementById("bookingHeading").textContent="Book "+button.dataset.bookConsultation+" Consultation";
+      document.getElementById("bookingProfileSummary").textContent="Booking for "+profile.full_name+" · "+profile.phone_number;
+      bookingStatus.classList.remove("visible");bookingPanel.style.display="block";bookingPanel.scrollIntoView({behavior:"smooth",block:"center"});
+    }));
+    document.getElementById("cancelConsultationBooking").addEventListener("click",()=>{bookingForm.reset();bookingPanel.style.display="none";bookingStatus.classList.remove("visible");});
+    bookingForm.addEventListener("submit",async event=>{
+      event.preventDefault();if(!bookingForm.reportValidity())return;
+      let profile=null;try{profile=JSON.parse(localStorage.getItem("sirisnutrifit_saved_profile")||"null");}catch(_){}
+      if(!profile||!profile.full_name||!profile.phone_number){bookingStatus.textContent="Customer details are missing. Please complete your profile first.";bookingStatus.classList.add("visible");return;}
+      const date=document.getElementById("bookingDate").value,time=document.getElementById("bookingTime").value,type=document.getElementById("bookingConsultationType").value;
+      if(date<localDate){bookingStatus.textContent="Please choose today or a future date.";bookingStatus.classList.add("visible");return;}
+      const btn=document.getElementById("submitConsultationBooking");btn.disabled=true;bookingStatus.classList.remove("visible");
+      try{
+        const {error}=await supabase.from("consultation_enquiries").insert({full_name:profile.full_name,phone_number:profile.phone_number,email:profile.email||null,consultation_type:type,appointment_date:date,appointment_time:time,preferred_time:new Date(date+"T"+time).toLocaleString(),message:document.getElementById("bookingMessage").value.trim()||null});
+        if(error)throw error;
+        bookingForm.reset();bookingPanel.style.display="none";bookingStatus.textContent="Your "+type.toLowerCase()+" consultation request for "+date+" at "+time+" has been submitted. Our team will contact you to confirm.";bookingStatus.style.background="#eaf4e5";bookingStatus.style.color="#244c32";bookingStatus.classList.add("visible");bookingPanel.style.display="block";
+      }catch(error){bookingStatus.textContent=error.message||"Could not submit booking. Please try again.";bookingStatus.style.background="#fde8e7";bookingStatus.style.color="#8c2923";bookingStatus.classList.add("visible");}finally{btn.disabled=false;}
+    });
 </script>
 
 </body>
