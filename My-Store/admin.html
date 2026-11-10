@@ -208,8 +208,10 @@ async function loadConsultationEnquiries(archived=false){
   const id=btn.dataset.saveConsultation;btn.disabled=true;
   const val=selector=>target.querySelector(selector.slice(0,-1)+'="'+id+'"]').value;
   const payload={consultation_stage:val("[data-stage]"),status:val("[data-booking-status]"),suggestions:val("[data-suggestions]").trim()||null,consultant_notes:val("[data-notes]").trim()||null,package_offered:val("[data-package]").trim()||null,updated_at:new Date().toISOString()};
-  const {error}=await supabase.from("consultation_enquiries").update(payload).eq("id",id);btn.disabled=false;
-  if(error){message(error.message,true);return;}message(payload.consultation_stage==="Closed"?"Consultation closed and moved to Closed Consultations.":"Consultation details saved.");await loadConsultationEnquiries();await loadCustomers();await loadConsultationEnquiries(true);
+  const {data:updated,error}=await supabase.from("consultation_enquiries").update(payload).eq("id",id).select("phone_number").single();btn.disabled=false;
+  if(error){message(error.message,true);return;}
+  try{await syncCustomerArchive(updated.phone_number);}catch(syncError){message("Consultation saved, but customer archive status could not be updated: "+syncError.message,true);return;}
+  message(payload.consultation_stage==="Closed"?"Service completed. Customer profile moved to Closed Customers.":"Consultation details saved; customer remains active.");await loadConsultationEnquiries();await loadCustomers();await loadConsultationEnquiries(true);
  }));
 }
 document.getElementById("refreshEnquiries").addEventListener("click",loadConsultationEnquiries);
